@@ -1,0 +1,39 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Virtual environments ---
+venv/
+env/
+ENV/
+.venv/
+backend/venv/
+
+# --- Environment / secrets ---
+.env
+*.env
+!.env.example
+
+# --- Project runtime data (don't commit uploaded books, generated summaries, or logs) ---
+backend/data/*
+!backend/data/.gitkeep
+
+backend/logs/*
+!backend/logs/.gitkeep
+
+backend/output/*
+!backend/output/.gitkeep
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- pip / build artifacts ---
+build/
+dist/
+*.egg-info/

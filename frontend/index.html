@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BookBrief — Chapter Summarizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Serif+4:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1b19;
+    --paper:#f3ede1;
+    --paper-2:#ece3d1;
+    --rule:#d8cbaf;
+    --gold:#a9782f;
+    --gold-bright:#c9962f;
+    --green:#4a5d43;
+    --muted:#6f6656;
+    --card:#fbf8f1;
+    --shadow: 0 1px 0 rgba(28,27,25,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:
+      radial-gradient(ellipse at top left, rgba(169,120,47,0.06), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(74,93,67,0.05), transparent 55%);
+    color:var(--ink);
+    font-family:'Source Serif 4', serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:56px 24px 120px;}
+
+  header.masthead{
+    text-align:center;
+    margin-bottom:44px;
+    padding-bottom:28px;
+    border-bottom:1px solid var(--rule);
+    position:relative;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:10px;
+  }
+  h1.title{
+    font-family:'Fraunces', serif;
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:clamp(34px,5vw,52px);
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{color:var(--muted); font-size:15px; font-style:italic;}
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    box-shadow:var(--shadow);
+    padding:26px 28px;
+    margin-bottom:28px;
+  }
+  .panel h2{
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    font-weight:600;
+    margin:0 0 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .panel h2 .num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--gold);
+    border:1px solid var(--gold);
+    border-radius:50%;
+    width:22px;height:22px;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+
+  input[type=file]{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+  }
+  select{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    padding:9px 12px;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:3px;
+    color:var(--ink);
+    flex:1;
+    min-width:200px;
+  }
+  button{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    padding:11px 20px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background .15s ease, transform .05s ease;
+  }
+  button:hover{background:#33312c;}
+  button:active{transform:translateY(1px);}
+  button.secondary{
+    background:transparent;
+    color:var(--ink);
+    border:1px solid var(--ink);
+  }
+  button.secondary:hover{background:rgba(28,27,25,0.06);}
+  button:disabled{opacity:0.45; cursor:not-allowed;}
+
+  .hint{font-size:12.5px; color:var(--muted); margin-top:8px; font-family:'JetBrains Mono', monospace;}
+
+  .status{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-top:14px;
+    display:none;
+    align-items:center;
+    gap:8px;
+  }
+  .status.active{display:flex;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--gold-bright); animation:pulse 1.1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.3} 50%{opacity:1}}
+
+  /* Table of Contents preview */
+  table.toc{width:100%; border-collapse:collapse; font-size:14px;}
+  table.toc th{
+    text-align:left;
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    padding:6px 8px;
+    border-bottom:1px solid var(--rule);
+  }
+  table.toc td{padding:8px 8px; border-bottom:1px dotted var(--rule); vertical-align:middle;}
+  table.toc tr:last-child td{border-bottom:none;}
+  #breakdownFoot td{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:600;
+    border-top:2px solid var(--ink);
+    border-bottom:none;
+    padding-top:12px;
+    color:var(--ink);
+  }
+  table.toc td.num-cell, table.toc th.num-cell{text-align:right; font-family:'JetBrains Mono', monospace; font-size:12.5px;}
+  tr.part-row td{
+    padding-top:16px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--gold);
+    border-bottom:1px solid var(--rule);
+  }
+  tr.part-row:first-child td{padding-top:6px;}
+  .toc-bar{height:6px; background:var(--paper-2); border-radius:3px; overflow:hidden; width:100%; max-width:160px;}
+  .toc-bar-fill{height:100%; background:linear-gradient(90deg, var(--gold), var(--gold-bright));}
+  .pages-num{font-family:'JetBrains Mono', monospace; color:var(--muted); font-size:12.5px;}
+
+  /* Accordion */
+  .chapter{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    margin-bottom:14px;
+    overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .chapter-head{
+    display:flex; align-items:center; gap:14px;
+    padding:18px 22px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .chapter-head:hover{background:rgba(169,120,47,0.05);}
+  .chapter-idx{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--gold);
+    min-width:26px;
+  }
+  .chapter-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:18px;
+    flex:1;
+  }
+  .chapter-meta{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    display:flex; gap:14px; white-space:nowrap;
+  }
+  .chevron{
+    transition:transform .2s ease;
+    color:var(--muted);
+    font-size:14px;
+  }
+  .chapter.open .chevron{transform:rotate(90deg);}
+  .chapter-body{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .25s ease;
+    border-top:1px solid transparent;
+  }
+  .chapter.open .chapter-body{border-top:1px solid var(--rule);}
+  .chapter-body-inner{
+    padding:20px 22px 24px;
+    font-size:15.5px;
+    line-height:1.7;
+    color:#2a2823;
+    white-space:pre-wrap;
+  }
+
+  .part-group{margin-bottom:26px;}
+  .part-heading{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--gold);
+    padding:0 4px 10px;
+    border-bottom:1px solid var(--rule);
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .part-heading::before{content:'';flex:0 0 16px;height:1px;background:var(--gold);}
+
+  .stats-bar{
+    display:flex; gap:22px; flex-wrap:wrap;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-top:6px;
+  }
+  .stats-bar b{color:var(--ink);}
+
+  footer{
+    text-align:center;
+    color:var(--muted);
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    margin-top:40px;
+  }
+
+  .err{
+    background:#fbeaea; border:1px solid #dfae ae; color:#8a2c2c;
+    border:1px solid #e3b4b4;
+    padding:12px 16px; border-radius:4px; font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    margin-top:14px; display:none;
+  }
+  .err.active{display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">BookBrief</div>
+    <h1 class="title">Chapter-Wise Book Summarizer</h1>
+    <div class="subtitle">Drop in a PDF, and read it in minutes instead of hours.</div>
+  </header>
+
+  <div class="panel" id="apiKeyPanel">
+    <h2><span class="num">0</span> Your OpenAI API key</h2>
+    <div class="row">
+      <input type="password" id="apiKeyInput" placeholder="sk-..." style="flex:1; min-width:240px; font-family:'JetBrains Mono', monospace; font-size:13px; padding:9px 12px; background:var(--paper); border:1px solid var(--rule); border-radius:3px; color:var(--ink);" />
+      <button class="secondary" id="saveKeyBtn">Save key</button>
+      <button class="secondary" id="clearKeyBtn">Clear key</button>
+    </div>
+    <div class="hint">Stored only in your browser (localStorage) — never sent to us or saved on any server. Get one at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">platform.openai.com/api-keys</a></div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="num">1</span> Choose your book</h2>
+    <div class="row">
+      <input type="file" id="fileInput" accept="application/pdf" />
+      <button class="secondary" id="uploadBtn">Upload</button>
+    </div>
+    <div class="hint">or pick one already placed in backend/data/</div>
+    <div class="row" style="margin-top:10px;">
+      <select id="bookSelect"><option value="">— select a book —</option></select>
+      <button class="secondary" id="refreshBtn">↻ Refresh</button>
+    </div>
+    <div class="status" id="uploadStatus"><span class="dot"></span><span>Uploading…</span></div>
+  </div>
+
+  <div class="panel" id="tocPanel" style="display:none;">
+    <h2><span class="num">2</span> Table of contents</h2>
+    <div id="tocMeta" class="hint" style="margin-bottom:10px;"></div>
+    <table class="toc" id="tocTable">
+      <thead><tr><th>Chapter</th><th>Pages</th><th></th></tr></thead>
+      <tbody id="tocBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:18px;">
+      <button id="summarizeBtn">Summarize this book →</button>
+    </div>
+    <div class="status" id="summarizeStatus"><span class="dot"></span><span>Summarizing chapters, this can take a bit…</span></div>
+    <div class="err" id="errBox"></div>
+  </div>
+
+  <div id="resultsPanel" style="display:none;">
+    <div class="panel">
+      <h2><span class="num">3</span> Run summary</h2>
+      <div class="stats-bar" id="statsBar"></div>
+    </div>
+    <div id="chapterList"></div>
+    <div class="panel" id="breakdownPanel">
+      <h2><span class="num">4</span> Cost &amp; token breakdown</h2>
+      <table class="toc" id="breakdownTable">
+        <thead>
+          <tr>
+            <th>Chapter</th>
+            <th>Pages</th>
+            <th>In Tok</th>
+            <th>Out Tok</th>
+            <th>Time</th>
+            <th>Cost</th>
+          </tr>
+        </thead>
+        <tbody id="breakdownBody"></tbody>
+        <tfoot id="breakdownFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <footer>BookBrief — gpt-4o-mini · PyMuPDF · Flask — logs saved to backend/logs/</footer>
+</div>
+
+<script>
+const API = '';
+let currentFilename = null;
+
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const bookSelect = document.getElementById('bookSelect');
+const refreshBtn = document.getElementById('refreshBtn');
+const uploadStatus = document.getElementById('uploadStatus');
+const tocPanel = document.getElementById('tocPanel');
+const tocMeta = document.getElementById('tocMeta');
+const tocBody = document.getElementById('tocBody');
+const summarizeBtn = document.getElementById('summarizeBtn');
+const summarizeStatus = document.getElementById('summarizeStatus');
+const resultsPanel = document.getElementById('resultsPanel');
+const statsBar = document.getElementById('statsBar');
+const chapterList = document.getElementById('chapterList');
+const errBox = document.getElementById('errBox');
+
+function showErr(msg){ errBox.textContent = msg; errBox.classList.add('active'); }
+function clearErr(){ errBox.classList.remove('active'); errBox.textContent=''; }
+
+// --- BYOK: API key stays only in this browser's localStorage ---
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveKeyBtn = document.getElementById('saveKeyBtn');
+const clearKeyBtn = document.getElementById('clearKeyBtn');
+
+apiKeyInput.value = localStorage.getItem('openai_api_key') || '';
+
+saveKeyBtn.addEventListener('click', () => {
+  const key = apiKeyInput.value.trim();
+  if(!key){ showErr('Enter your OpenAI API key first.'); return; }
+  localStorage.setItem('openai_api_key', key);
+  clearErr();
+  saveKeyBtn.textContent = '✓ Saved';
+  setTimeout(() => { saveKeyBtn.textContent = 'Save key'; }, 1500);
+});
+
+clearKeyBtn.addEventListener('click', () => {
+  localStorage.removeItem('openai_api_key');
+  apiKeyInput.value = '';
+  clearKeyBtn.textContent = '✓ Cleared';
+  setTimeout(() => { clearKeyBtn.textContent = 'Clear key'; }, 1500);
+});
+
+function getApiKey(){
+  return localStorage.getItem('openai_api_key') || apiKeyInput.value.trim();
+}
+
+async function refreshBooks(){
+  const res = await fetch(`${API}/api/books`);
+  const data = await res.json();
+  bookSelect.innerHTML = '<option value="">— select a book —</option>' +
+    data.books.map(b => `<option value="${b}">${b}</option>`).join('');
+}
+refreshBtn.addEventListener('click', refreshBooks);
+refreshBooks();
+
+uploadBtn.addEventListener('click', async () => {
+  if(!fileInput.files.length){ showErr('Choose a PDF file first.'); return; }
+  clearErr();
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  uploadStatus.classList.add('active');
+  try{
+    const res = await fetch(`${API}/api/upload`, { method:'POST', body: fd });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Upload failed');
+    await refreshBooks();
+    bookSelect.value = data.filename;
+    loadToc(data.filename);
+  }catch(e){ showErr(e.message); }
+  finally{ uploadStatus.classList.remove('active'); }
+});
+
+bookSelect.addEventListener('change', () => {
+  if(bookSelect.value) loadToc(bookSelect.value);
+});
+
+async function loadToc(filename){
+  clearErr();
+  currentFilename = filename;
+  resultsPanel.style.display = 'none';
+  tocPanel.style.display = 'block';
+  tocMeta.textContent = 'Detecting chapters…';
+  tocBody.innerHTML = '';
+  try{
+    const res = await fetch(`${API}/api/preview-chapters`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Failed to detect chapters');
+    const maxPages = Math.max(...data.chapters.map(c => c.pages));
+    tocMeta.textContent = `${data.total_pages} pages · ${data.chapters.length} chapters detected (method: ${data.detection_method})`;
+
+    const hasParts = data.chapters.some(c => c.part);
+    let rows = '';
+    let lastPart = undefined;
+    for (const c of data.chapters) {
+      const part = c.part || null;
+      if (hasParts && part !== lastPart) {
+        rows += `<tr class="part-row"><td colspan="3">${part ? escapeHtml(part) : 'Unsectioned'}</td></tr>`;
+        lastPart = part;
+      }
+      rows += `
+        <tr>
+          <td>${escapeHtml(c.title)}</td>
+          <td><span class="pages-num">${c.pages}p</span></td>
+          <td><div class="toc-bar"><div class="toc-bar-fill" style="width:${(c.pages/maxPages*100).toFixed(0)}%"></div></div></td>
+        </tr>`;
+    }
+    tocBody.innerHTML = rows;
+  }catch(e){ showErr(e.message); tocMeta.textContent=''; }
+}
+
+summarizeBtn.addEventListener('click', async () => {
+  if(!currentFilename) return;
+  if(!getApiKey()){ showErr('Add your OpenAI API key above first.'); return; }
+  clearErr();
+  summarizeStatus.classList.add('active');
+  summarizeBtn.disabled = true;
+  resultsPanel.style.display = 'none';
+  try{
+    const res = await fetch(`${API}/api/summarize`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-OpenAI-Key': getApiKey()
+      },
+      body: JSON.stringify({filename: currentFilename})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Summarization failed');
+    renderResults(data);
+  }catch(e){ showErr(e.message); }
+  finally{
+    summarizeStatus.classList.remove('active');
+    summarizeBtn.disabled = false;
+  }
+});
+
+function renderResults(data){
+  resultsPanel.style.display = 'block';
+  const s = data.stats;
+  statsBar.innerHTML = `
+    <span>⏱ <b>${s.total_time_seconds}s</b></span>
+    <span>↳ in tokens <b>${s.total_input_tokens.toLocaleString()}</b></span>
+    <span>↰ out tokens <b>${s.total_output_tokens.toLocaleString()}</b></span>
+    <span>$ <b>${s.total_cost_usd.toFixed(4)}</b></span>
+    <span>model <b>${s.model}</b></span>
+  `;
+
+  const breakdownBody = document.getElementById('breakdownBody');
+  const breakdownFoot = document.getElementById('breakdownFoot');
+  breakdownBody.innerHTML = data.chapters.map(c => `
+    <tr>
+      <td>${escapeHtml(c.title)}</td>
+      <td class="num-cell">${c.pages}p</td>
+      <td class="num-cell">${c.input_tokens.toLocaleString()}</td>
+      <td class="num-cell">${c.output_tokens.toLocaleString()}</td>
+      <td class="num-cell">${c.time_seconds}s</td>
+      <td class="num-cell">$${c.cost_usd.toFixed(4)}</td>
+    </tr>
+  `).join('');
+  breakdownFoot.innerHTML = `
+    <tr>
+      <td>TOTAL</td>
+      <td class="num-cell">${data.total_pages}p</td>
+      <td class="num-cell">${s.total_input_tokens.toLocaleString()}</td>
+      <td class="num-cell">${s.total_output_tokens.toLocaleString()}</td>
+      <td class="num-cell">${s.total_time_seconds}s</td>
+      <td class="num-cell">$${s.total_cost_usd.toFixed(4)}</td>
+    </tr>
+  `;
+  const hasParts = data.chapters.some(c => c.part);
+
+  if (!hasParts) {
+    chapterList.innerHTML = data.chapters.map((c, i) => renderChapterCard(c, i)).join('');
+    return;
+  }
+
+  // group consecutive chapters by part, preserving order
+  const groups = [];
+  let lastPart = undefined;
+  for (const c of data.chapters) {
+    const part = c.part || null;
+    if (part !== lastPart) {
+      groups.push({ part, chapters: [] });
+      lastPart = part;
+    }
+    groups[groups.length - 1].chapters.push(c);
+  }
+
+  let globalIdx = 0;
+  chapterList.innerHTML = groups.map(g => {
+    const cards = g.chapters.map(c => {
+      const html = renderChapterCard(c, globalIdx);
+      globalIdx++;
+      return html;
+    }).join('');
+    return `
+      <div class="part-group">
+        <div class="part-heading">${g.part ? escapeHtml(g.part) : 'Unsectioned'}</div>
+        ${cards}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderChapterCard(c, i){
+  return `
+    <div class="chapter" id="ch-${i}">
+      <div class="chapter-head" onclick="toggleChapter(${i})">
+        <span class="chapter-idx">${String(i+1).padStart(2,'0')}</span>
+        <span class="chapter-title">${escapeHtml(c.title)}</span>
+        <span class="chapter-meta">
+          <span>${c.pages}p</span>
+          <span>${c.input_tokens}→${c.output_tokens} tok</span>
+          <span>${c.time_seconds}s</span>
+          <span>$${c.cost_usd.toFixed(4)}</span>
+        </span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">${escapeHtml(c.summary)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleChapter(i){
+  const el = document.getElementById(`ch-${i}`);
+  const body = el.querySelector('.chapter-body');
+  const isOpen = el.classList.contains('open');
+  if(isOpen){
+    body.style.maxHeight = null;
+    el.classList.remove('open');
+  }else{
+    el.classList.add('open');
+    body.style.maxHeight = body.scrollHeight + 'px';
+  }
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
