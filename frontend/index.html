@@ -147,7 +147,76 @@
   .dot{width:7px;height:7px;border-radius:50%;background:var(--gold-bright); animation:pulse 1.1s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.3} 50%{opacity:1}}
 
-  /* ── Wake screen ───────────────────────────────────────────────────── */
+  /* ── Info modal ────────────────────────────────────────────────────── */
+  .info-btn{
+    position:absolute;
+    top:0; right:0;
+    background:none; border:none;
+    padding:6px; cursor:pointer;
+    color:var(--muted);
+    font-size:18px;
+    line-height:1;
+    border-radius:50%;
+    transition:color .15s, background .15s;
+    text-transform:none;
+    letter-spacing:0;
+  }
+  .info-btn:hover{ color:var(--gold); background:rgba(169,120,47,0.08); }
+
+  .info-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  @media(max-width:460px){ .info-grid{ grid-template-columns:1fr; } }
+  .info-card{
+    background:var(--paper-2);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:12px 14px;
+  }
+  .info-card-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:4px;
+  }
+  .info-card-val{
+    font-family:'Fraunces', serif;
+    font-size:20px; font-weight:600; color:var(--ink);
+    line-height:1.1;
+  }
+  .info-card-sub{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px; color:var(--muted); margin-top:3px;
+  }
+  .info-card.green .info-card-val{ color:var(--green); }
+  .info-card.gold  .info-card-val{ color:var(--gold); }
+
+  .info-section-title{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--gold); margin:14px 0 8px;
+  }
+  .info-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    padding:5px 0; border-bottom:1px dotted var(--rule);
+    color:var(--ink);
+  }
+  .info-row:last-child{ border-bottom:none; }
+  .info-row span{ color:var(--muted); font-size:11px; }
+  .info-warn{
+    background:rgba(169,120,47,0.07);
+    border:1px solid rgba(169,120,47,0.2);
+    border-radius:3px;
+    padding:9px 12px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; color:var(--muted);
+    margin-top:14px; line-height:1.6;
+  }
+
+  /* ── Wake screen ────────────────────────────────────────────────────── */
   #wakeScreen{
     position:fixed; inset:0; z-index:999;
     background:var(--paper);
@@ -584,6 +653,7 @@
     <div class="eyebrow">BookBrief</div>
     <h1 class="title">Chapter-Wise Book Summarizer</h1>
     <div class="subtitle">Drop in a PDF, and read it in minutes instead of hours.</div>
+    <button class="info-btn" onclick="openInfoModal()" title="Usage limits & cost info">👁</button>
   </header>
 
   <!-- Step 0: API Key -->
@@ -703,6 +773,59 @@
   </div>
 
   <footer id="footerEl">BookBrief — gpt-4o-mini · PyMuPDF · Flask — logs saved to backend/logs/</footer>
+</div>
+
+<!-- ── Info / limits modal ───────────────────────────────────────────── -->
+<div class="modal-backdrop" id="infoBackdrop" onclick="handleInfoBackdrop(event)">
+  <div class="modal">
+    <h3>📊 Usage limits &amp; cost guide</h3>
+
+    <div class="info-grid">
+      <div class="info-card green">
+        <div class="info-card-label">Books per month</div>
+        <div class="info-card-val">~450</div>
+        <div class="info-card-sub">500-page books, totally free</div>
+      </div>
+      <div class="info-card green">
+        <div class="info-card-label">Books per day</div>
+        <div class="info-card-val">~15</div>
+        <div class="info-card-sub">500-page books, no problem</div>
+      </div>
+      <div class="info-card gold">
+        <div class="info-card-label">Your OpenAI cost</div>
+        <div class="info-card-val">~$0.10</div>
+        <div class="info-card-sub">per 500-page book (default model)</div>
+      </div>
+      <div class="info-card gold">
+        <div class="info-card-label">Max book size</div>
+        <div class="info-card-val">~800 pg</div>
+        <div class="info-card-sub">beyond this may crash on free plan</div>
+      </div>
+    </div>
+
+    <div class="info-section-title">What does it cost me? (default model · gpt-4o-mini)</div>
+    <div class="info-row">Short book · ~100 pages <span>~$0.02</span></div>
+    <div class="info-row">Average book · ~300 pages <span>~$0.05</span></div>
+    <div class="info-row">Long book · ~500 pages <span>~$0.10</span></div>
+    <div class="info-row">Very long book · ~800 pages <span>~$0.20</span></div>
+
+    <div class="info-section-title">Switching to a fancier model?</div>
+    <div class="info-row">gpt-4.1-nano &nbsp;🟢 <span>even cheaper than default</span></div>
+    <div class="info-row">gpt-4o &nbsp;🔴 <span>~15× your bill</span></div>
+    <div class="info-row">o3 or gpt-5 &nbsp;🔴 <span>~60× your bill</span></div>
+    <div class="info-row">gpt-4.5 &nbsp;🟣 <span>~500× your bill — avoid!</span></div>
+
+    <div class="info-warn">
+      ⏱ <b>Why does it take so long to load sometimes?</b><br>
+      The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that's what the Snake game is for while you wait!
+      <br><br>
+      ⚠ <b>Book too big?</b> If your PDF is over ~800 pages it might crash on the free plan. Try splitting it or upgrading hosting.
+    </div>
+
+    <div class="modal-row" style="margin-top:18px;">
+      <button onclick="closeInfoModal()">Got it</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── Model picker modal ─────────────────────────────────────────────── -->
@@ -1031,6 +1154,17 @@ function escapeHtml(str){
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ── Info modal ────────────────────────────────────────────────────────────
+function openInfoModal(){
+  document.getElementById('infoBackdrop').classList.add('open');
+}
+function closeInfoModal(){
+  document.getElementById('infoBackdrop').classList.remove('open');
+}
+function handleInfoBackdrop(e){
+  if(e.target === document.getElementById('infoBackdrop')) closeInfoModal();
 }
 
 // ── Model picker ──────────────────────────────────────────────────────────
