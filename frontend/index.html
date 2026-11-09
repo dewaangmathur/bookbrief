@@ -6,6 +6,7 @@
 <title>BookBrief — Chapter Summarizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Serif+4:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --ink:#1c1b19;
@@ -111,6 +112,7 @@
     border-radius:3px;
     cursor:pointer;
     transition:background .15s ease, transform .05s ease;
+    white-space:nowrap;
   }
   button:hover{background:#33312c;}
   button:active{transform:translateY(1px);}
@@ -120,6 +122,12 @@
     border:1px solid var(--ink);
   }
   button.secondary:hover{background:rgba(28,27,25,0.06);}
+  button.gold{
+    background:var(--gold);
+    color:#fff;
+    border:none;
+  }
+  button.gold:hover{background:var(--gold-bright);}
   button:disabled{opacity:0.45; cursor:not-allowed;}
 
   .hint{font-size:12.5px; color:var(--muted); margin-top:8px; font-family:'JetBrains Mono', monospace;}
@@ -136,6 +144,58 @@
   .status.active{display:flex;}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--gold-bright); animation:pulse 1.1s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.3} 50%{opacity:1}}
+
+  /* Summary parameters */
+  .params-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+    margin-bottom:4px;
+  }
+  @media(max-width:560px){.params-grid{grid-template-columns:1fr;}}
+  .param-group{display:flex;flex-direction:column;gap:8px;}
+  .param-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .param-row{display:flex;align-items:center;gap:10px;}
+  .param-row input[type=range]{
+    flex:1;
+    accent-color:var(--gold);
+    height:4px;
+    cursor:pointer;
+  }
+  .param-val{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+    min-width:52px;
+    text-align:right;
+  }
+  .params-hint{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    margin-top:10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .params-preview{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--gold);
+    background:rgba(169,120,47,0.08);
+    border:1px solid rgba(169,120,47,0.2);
+    border-radius:3px;
+    padding:6px 10px;
+    margin-top:10px;
+    display:inline-block;
+  }
 
   /* Table of Contents preview */
   table.toc{width:100%; border-collapse:collapse; font-size:14px;}
@@ -254,6 +314,27 @@
   }
   .stats-bar b{color:var(--ink);}
 
+  /* Results toolbar */
+  .results-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .results-toolbar h2{margin:0;}
+
+  /* PDF download button */
+  .btn-pdf{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:10px 18px;
+    font-size:12px;
+  }
+  .btn-pdf svg{flex-shrink:0;}
+
   footer{
     text-align:center;
     color:var(--muted);
@@ -263,8 +344,9 @@
   }
 
   .err{
-    background:#fbeaea; border:1px solid #dfae ae; color:#8a2c2c;
+    background:#fbeaea;
     border:1px solid #e3b4b4;
+    color:#8a2c2c;
     padding:12px 16px; border-radius:4px; font-family:'JetBrains Mono', monospace; font-size:12.5px;
     margin-top:14px; display:none;
   }
@@ -280,6 +362,7 @@
     <div class="subtitle">Drop in a PDF, and read it in minutes instead of hours.</div>
   </header>
 
+  <!-- Step 0: API Key -->
   <div class="panel" id="apiKeyPanel">
     <h2><span class="num">0</span> Your OpenAI API key</h2>
     <div class="row">
@@ -290,6 +373,7 @@
     <div class="hint">Stored only in your browser (localStorage) — never sent to us or saved on any server. Get one at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">platform.openai.com/api-keys</a></div>
   </div>
 
+  <!-- Step 1: Book -->
   <div class="panel">
     <h2><span class="num">1</span> Choose your book</h2>
     <div class="row">
@@ -304,6 +388,7 @@
     <div class="status" id="uploadStatus"><span class="dot"></span><span>Uploading…</span></div>
   </div>
 
+  <!-- Step 2: TOC -->
   <div class="panel" id="tocPanel" style="display:none;">
     <h2><span class="num">2</span> Table of contents</h2>
     <div id="tocMeta" class="hint" style="margin-bottom:10px;"></div>
@@ -311,16 +396,55 @@
       <thead><tr><th>Chapter</th><th>Pages</th><th></th></tr></thead>
       <tbody id="tocBody"></tbody>
     </table>
+
+    <!-- Summary parameters -->
+    <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--rule);">
+      <div style="font-family:'Fraunces', serif; font-size:16px; font-weight:600; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--gold); border:1px solid var(--gold); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">⚙</span>
+        Summary parameters
+      </div>
+      <div class="params-grid">
+        <div class="param-group">
+          <div class="param-label">Words per page</div>
+          <div class="param-row">
+            <input type="range" id="wppSlider" min="10" max="150" step="5" value="50" />
+            <span class="param-val" id="wppVal">50 w/p</span>
+          </div>
+          <div class="hint" style="margin-top:2px;">Controls density — more words = more detailed per page</div>
+        </div>
+        <div class="param-group">
+          <div class="param-label">Max words per chapter</div>
+          <div class="param-row">
+            <input type="range" id="maxWordsSlider" min="100" max="4000" step="50" value="1000" />
+            <span class="param-val" id="maxWordsVal">1000 w</span>
+          </div>
+          <div class="hint" style="margin-top:2px;">Caps the longest chapter summary (regardless of page count)</div>
+        </div>
+      </div>
+      <div class="params-preview" id="paramsPreview">20 pages → ~1000 words</div>
+    </div>
+
     <div class="row" style="margin-top:18px;">
       <button id="summarizeBtn">Summarize this book →</button>
+      <button class="secondary" id="resetParamsBtn">Reset defaults</button>
     </div>
     <div class="status" id="summarizeStatus"><span class="dot"></span><span>Summarizing chapters, this can take a bit…</span></div>
     <div class="err" id="errBox"></div>
   </div>
 
+  <!-- Results -->
   <div id="resultsPanel" style="display:none;">
     <div class="panel">
-      <h2><span class="num">3</span> Run summary</h2>
+      <div class="results-toolbar">
+        <h2 style="font-family:'Fraunces', serif; font-size:19px; font-weight:600; display:flex; align-items:center; gap:10px;">
+          <span class="num" style="font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--gold); border:1px solid var(--gold); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center;">3</span>
+          Run summary
+        </h2>
+        <button class="gold btn-pdf" id="downloadPdfBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          Download PDF Report
+        </button>
+      </div>
       <div class="stats-bar" id="statsBar"></div>
     </div>
     <div id="chapterList"></div>
@@ -349,28 +473,37 @@
 <script>
 const API = '';
 let currentFilename = null;
+let lastResultData = null;
 
-const fileInput = document.getElementById('fileInput');
-const uploadBtn = document.getElementById('uploadBtn');
-const bookSelect = document.getElementById('bookSelect');
-const refreshBtn = document.getElementById('refreshBtn');
-const uploadStatus = document.getElementById('uploadStatus');
-const tocPanel = document.getElementById('tocPanel');
-const tocMeta = document.getElementById('tocMeta');
-const tocBody = document.getElementById('tocBody');
-const summarizeBtn = document.getElementById('summarizeBtn');
-const summarizeStatus = document.getElementById('summarizeStatus');
-const resultsPanel = document.getElementById('resultsPanel');
-const statsBar = document.getElementById('statsBar');
-const chapterList = document.getElementById('chapterList');
-const errBox = document.getElementById('errBox');
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const fileInput        = document.getElementById('fileInput');
+const uploadBtn        = document.getElementById('uploadBtn');
+const bookSelect       = document.getElementById('bookSelect');
+const refreshBtn       = document.getElementById('refreshBtn');
+const uploadStatus     = document.getElementById('uploadStatus');
+const tocPanel         = document.getElementById('tocPanel');
+const tocMeta          = document.getElementById('tocMeta');
+const tocBody          = document.getElementById('tocBody');
+const summarizeBtn     = document.getElementById('summarizeBtn');
+const summarizeStatus  = document.getElementById('summarizeStatus');
+const resultsPanel     = document.getElementById('resultsPanel');
+const statsBar         = document.getElementById('statsBar');
+const chapterList      = document.getElementById('chapterList');
+const errBox           = document.getElementById('errBox');
+const downloadPdfBtn   = document.getElementById('downloadPdfBtn');
+const wppSlider        = document.getElementById('wppSlider');
+const wppVal           = document.getElementById('wppVal');
+const maxWordsSlider   = document.getElementById('maxWordsSlider');
+const maxWordsVal      = document.getElementById('maxWordsVal');
+const paramsPreview    = document.getElementById('paramsPreview');
+const resetParamsBtn   = document.getElementById('resetParamsBtn');
 
 function showErr(msg){ errBox.textContent = msg; errBox.classList.add('active'); }
 function clearErr(){ errBox.classList.remove('active'); errBox.textContent=''; }
 
-// --- BYOK: API key stays only in this browser's localStorage ---
+// ── API key ───────────────────────────────────────────────────────────────
 const apiKeyInput = document.getElementById('apiKeyInput');
-const saveKeyBtn = document.getElementById('saveKeyBtn');
+const saveKeyBtn  = document.getElementById('saveKeyBtn');
 const clearKeyBtn = document.getElementById('clearKeyBtn');
 
 apiKeyInput.value = localStorage.getItem('openai_api_key') || '';
@@ -395,8 +528,33 @@ function getApiKey(){
   return localStorage.getItem('openai_api_key') || apiKeyInput.value.trim();
 }
 
+// ── Summary parameters ────────────────────────────────────────────────────
+const DEFAULT_WPP = 50;
+const DEFAULT_MAX = 1000;
+
+function updateParamsPreview(){
+  const wpp      = parseInt(wppSlider.value);
+  const maxW     = parseInt(maxWordsSlider.value);
+  const example  = 20; // "20 pages" example
+  const computed = Math.min(example * wpp, maxW);
+  wppVal.textContent      = `${wpp} w/p`;
+  maxWordsVal.textContent = `${maxW.toLocaleString()} w`;
+  paramsPreview.textContent = `${example} pages → ~${computed.toLocaleString()} words`;
+}
+
+wppSlider.addEventListener('input', updateParamsPreview);
+maxWordsSlider.addEventListener('input', updateParamsPreview);
+updateParamsPreview();
+
+resetParamsBtn.addEventListener('click', () => {
+  wppSlider.value      = DEFAULT_WPP;
+  maxWordsSlider.value = DEFAULT_MAX;
+  updateParamsPreview();
+});
+
+// ── Books ─────────────────────────────────────────────────────────────────
 async function refreshBooks(){
-  const res = await fetch(`${API}/api/books`);
+  const res  = await fetch(`${API}/api/books`);
   const data = await res.json();
   bookSelect.innerHTML = '<option value="">— select a book —</option>' +
     data.books.map(b => `<option value="${b}">${b}</option>`).join('');
@@ -411,7 +569,7 @@ uploadBtn.addEventListener('click', async () => {
   fd.append('file', fileInput.files[0]);
   uploadStatus.classList.add('active');
   try{
-    const res = await fetch(`${API}/api/upload`, { method:'POST', body: fd });
+    const res  = await fetch(`${API}/api/upload`, { method:'POST', body: fd });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Upload failed');
     await refreshBooks();
@@ -433,7 +591,7 @@ async function loadToc(filename){
   tocMeta.textContent = 'Detecting chapters…';
   tocBody.innerHTML = '';
   try{
-    const res = await fetch(`${API}/api/preview-chapters`, {
+    const res  = await fetch(`${API}/api/preview-chapters`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({filename})
     });
@@ -476,10 +634,15 @@ summarizeBtn.addEventListener('click', async () => {
         'Content-Type':'application/json',
         'X-OpenAI-Key': getApiKey()
       },
-      body: JSON.stringify({filename: currentFilename})
+      body: JSON.stringify({
+        filename: currentFilename,
+        words_per_page: parseInt(wppSlider.value),
+        max_words: parseInt(maxWordsSlider.value),
+      })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Summarization failed');
+    lastResultData = data;
     renderResults(data);
   }catch(e){ showErr(e.message); }
   finally{
@@ -528,7 +691,6 @@ function renderResults(data){
     return;
   }
 
-  // group consecutive chapters by part, preserving order
   const groups = [];
   let lastPart = undefined;
   for (const c of data.chapters) {
@@ -578,7 +740,7 @@ function renderChapterCard(c, i){
 }
 
 function toggleChapter(i){
-  const el = document.getElementById(`ch-${i}`);
+  const el   = document.getElementById(`ch-${i}`);
   const body = el.querySelector('.chapter-body');
   const isOpen = el.classList.contains('open');
   if(isOpen){
@@ -594,6 +756,373 @@ function escapeHtml(str){
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ── PDF export ────────────────────────────────────────────────────────────
+downloadPdfBtn.addEventListener('click', () => {
+  if(!lastResultData){ return; }
+  generateBeautifulPdf(lastResultData);
+});
+
+function generateBeautifulPdf(data){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+  // ── Palette & metrics ─────────────────────────────────────────────────
+  const W   = 210, H = 297;
+  const ML  = 20, MR = 20, MT = 24;        // margins
+  const TW  = W - ML - MR;                 // text width
+  const COL_GOLD   = [169, 120, 47];
+  const COL_INK    = [28, 27, 25];
+  const COL_PAPER  = [243, 237, 225];
+  const COL_PAPER2 = [236, 227, 209];
+  const COL_RULE   = [216, 203, 175];
+  const COL_MUTED  = [111, 102, 86];
+  const COL_WHITE  = [255, 255, 255];
+  const COL_CREAM  = [251, 248, 241];
+
+  // Track link destinations: chapterPageMap[i] = pdf page number for chapter i
+  const chapterPageMap = {};
+  let pageNum = 1;    // current PDF page (1-indexed, jsPDF pages start at 1)
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function setFont(name, style, size, colorRGB){
+    doc.setFont(name || 'helvetica', style || 'normal');
+    doc.setFontSize(size || 11);
+    doc.setTextColor(...(colorRGB || COL_INK));
+  }
+  function fillRect(x, y, w, h, colorRGB){
+    doc.setFillColor(...colorRGB);
+    doc.rect(x, y, w, h, 'F');
+  }
+  function drawRule(y, colorRGB, lx, rx){
+    doc.setDrawColor(...(colorRGB || COL_RULE));
+    doc.setLineWidth(0.3);
+    doc.line(lx ?? ML, y, rx ?? (W - MR), y);
+  }
+
+  // Wrapped text that respects max width; returns new Y after printing
+  function writeText(text, x, y, maxW, lineH){
+    const lines = doc.splitTextToSize(text, maxW);
+    doc.text(lines, x, y);
+    return y + lines.length * lineH;
+  }
+
+  // Add a new page and return updated pageNum
+  function addPage(){
+    doc.addPage();
+    pageNum++;
+    // subtle paper background
+    fillRect(0, 0, W, H, COL_PAPER);
+    return pageNum;
+  }
+
+  // Running footer on current page
+  function stampFooter(label){
+    const fy = H - 10;
+    setFont('helvetica', 'normal', 7.5, COL_MUTED);
+    doc.text('BookBrief', ML, fy);
+    doc.text(label || '', W/2, fy, { align:'center' });
+    doc.text(String(pageNum), W - MR, fy, { align:'right' });
+    drawRule(fy - 2.5, COL_RULE);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // PAGE 1 — Cover
+  // ════════════════════════════════════════════════════════════════════════
+  fillRect(0, 0, W, H, COL_PAPER);
+
+  // top gold band
+  fillRect(0, 0, W, 56, COL_GOLD);
+
+  // eyebrow
+  setFont('helvetica', 'bold', 8, COL_CREAM);
+  doc.text('B O O K B R I E F', W/2, 18, { align:'center' });
+
+  // white rule under eyebrow
+  doc.setDrawColor(...COL_CREAM); doc.setLineWidth(0.3);
+  doc.line(ML + 20, 22, W - MR - 20, 22);
+
+  // title on gold band
+  setFont('helvetica', 'bold', 20, [255, 255, 255]);
+  const bookName = (data.filename || 'Book Summary').replace(/\.pdf$/i, '');
+  const titleLines = doc.splitTextToSize(bookName, TW - 10);
+  let ty = 38;
+  titleLines.forEach(line => {
+    doc.text(line, W/2, ty, { align:'center' });
+    ty += 9;
+  });
+
+  // subtitle
+  const coverY = 68;
+  setFont('helvetica', 'italic', 11, COL_MUTED);
+  doc.text('Chapter-by-Chapter Summary Report', W/2, coverY, { align:'center' });
+
+  // decorative horizontal rule
+  doc.setDrawColor(...COL_GOLD); doc.setLineWidth(0.6);
+  doc.line(ML + 30, coverY + 7, W - MR - 30, coverY + 7);
+
+  // stats block
+  const s = data.stats;
+  const statsY = coverY + 22;
+  const statItems = [
+    ['Total pages', `${data.total_pages}`],
+    ['Chapters', `${data.chapters.length}`],
+    ['Model', s.model || 'gpt-4o-mini'],
+    ['Total cost', `$${s.total_cost_usd.toFixed(4)}`],
+    ['Processing time', `${s.total_time_seconds}s`],
+    ['Detection', data.detection_method || '—'],
+  ];
+
+  // stats card background
+  fillRect(ML, statsY - 6, TW, statItems.length * 9 + 12, COL_CREAM);
+  doc.setDrawColor(...COL_RULE); doc.setLineWidth(0.3);
+  doc.rect(ML, statsY - 6, TW, statItems.length * 9 + 12);
+
+  statItems.forEach(([label, value], i){
+    const sy = statsY + i * 9;
+    setFont('helvetica', 'bold', 8.5, COL_MUTED);
+    doc.text(label.toUpperCase(), ML + 8, sy);
+    setFont('helvetica', 'bold', 9, COL_INK);
+    doc.text(value, W - MR - 8, sy, { align:'right' });
+    if(i < statItems.length - 1){
+      doc.setDrawColor(...COL_RULE); doc.setLineWidth(0.15);
+      doc.line(ML + 8, sy + 2.5, W - MR - 8, sy + 2.5);
+    }
+  });
+
+  // generated date
+  const genY = statsY + statItems.length * 9 + 20;
+  setFont('helvetica', 'normal', 8, COL_MUTED);
+  const now = new Date();
+  doc.text(`Generated ${now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`, W/2, genY, { align:'center' });
+
+  // bottom gold strip
+  fillRect(0, H - 16, W, 16, COL_GOLD);
+  setFont('helvetica', 'normal', 7, COL_CREAM);
+  doc.text('Powered by BookBrief · gpt-4o-mini · PyMuPDF', W/2, H - 6, { align:'center' });
+
+  stampFooter('');
+
+  // ════════════════════════════════════════════════════════════════════════
+  // PAGE 2 — Table of Contents (links added after chapters are laid out)
+  // ════════════════════════════════════════════════════════════════════════
+  addPage();
+  const tocPageNum = pageNum; // remember which PDF page holds the ToC
+
+  // ToC header
+  fillRect(0, 0, W, 36, COL_PAPER2);
+  setFont('helvetica', 'normal', 7.5, COL_GOLD);
+  doc.text('B O O K B R I E F', ML, 12);
+  setFont('helvetica', 'bold', 18, COL_INK);
+  doc.text('Table of Contents', ML, 26);
+  drawRule(32, COL_GOLD);
+
+  // We'll store ToC link annotations later; for now just lay out the rows
+  // and collect their Y positions so we can add link targets.
+  const tocEntries = []; // { chapterIdx, x, y, w, h }
+  let tocY = 44;
+
+  const hasParts = data.chapters.some(c => c.part);
+  let lastPart   = undefined;
+  let chIdx      = 0;
+
+  for(const ch of data.chapters){
+    // Page break safety inside ToC (unlikely but guard anyway)
+    if(tocY > H - 24){
+      stampFooter('Table of Contents');
+      addPage();
+      fillRect(0, 0, W, H, COL_PAPER);
+      tocY = 24;
+    }
+
+    // Part label
+    if(hasParts && ch.part !== lastPart){
+      lastPart = ch.part;
+      const partLabel = ch.part || 'Unsectioned';
+      setFont('helvetica', 'bold', 8, COL_GOLD);
+      doc.text(partLabel.toUpperCase(), ML, tocY);
+      tocY += 6;
+      drawRule(tocY, COL_RULE);
+      tocY += 5;
+    }
+
+    // Chapter row
+    const numLabel = String(chIdx + 1).padStart(2, '0');
+    const rowH     = 8;
+
+    // subtle alternating fill
+    if(chIdx % 2 === 0){
+      fillRect(ML - 2, tocY - 5, TW + 4, rowH, [245, 240, 231]);
+    }
+
+    // index number
+    setFont('helvetica', 'bold', 9, COL_GOLD);
+    doc.text(numLabel, ML, tocY);
+
+    // title (truncate if needed)
+    setFont('helvetica', 'normal', 9, COL_INK);
+    const maxTitleW = TW - 36;
+    const titleFull = ch.title || '';
+    const titleFits = doc.splitTextToSize(titleFull, maxTitleW)[0];
+    doc.text(titleFits + (titleFull.length > titleFits.length ? '…' : ''), ML + 12, tocY);
+
+    // dotted leader
+    setFont('helvetica', 'normal', 7, COL_RULE);
+    const titleActualW = doc.getTextWidth(titleFits) + 12;
+    const dotsStart    = ML + titleActualW + 2;
+    const dotsEnd      = W - MR - 20;
+    if(dotsEnd > dotsStart + 6){
+      let dx = dotsStart;
+      while(dx < dotsEnd){ doc.text('.', dx, tocY); dx += 2.6; }
+    }
+
+    // page number placeholder ("--" for now; we'll overwrite after chapters)
+    setFont('helvetica', 'bold', 9, COL_MUTED);
+    doc.text('--', W - MR, tocY, { align:'right' });
+
+    // store bounding rect for the clickable link
+    tocEntries.push({ chapterIdx: chIdx, x: ML - 2, y: tocY - 5.5, w: TW + 4, h: rowH });
+
+    tocY += rowH + 1;
+    chIdx++;
+  }
+
+  stampFooter('Table of Contents');
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CHAPTER PAGES
+  // ════════════════════════════════════════════════════════════════════════
+  for(let ci = 0; ci < data.chapters.length; ci++){
+    const ch   = data.chapters[ci];
+    addPage();
+    chapterPageMap[ci] = pageNum; // record destination page
+
+    fillRect(0, 0, W, H, COL_PAPER);
+
+    // ── Chapter header band ──────────────────────────────────────────────
+    const bandH = 46;
+    fillRect(0, 0, W, bandH, COL_PAPER2);
+
+    // back-link to ToC (top-left pill)
+    setFont('helvetica', 'normal', 7.5, COL_MUTED);
+    doc.text('← Contents', ML, 10);
+    doc.link(ML, 5, 25, 7, { pageNumber: tocPageNum });
+
+    // part label
+    if(ch.part){
+      setFont('helvetica', 'normal', 7.5, COL_GOLD);
+      doc.text(ch.part.toUpperCase(), W/2, 10, { align:'center' });
+    }
+
+    // chapter number badge
+    setFont('helvetica', 'bold', 11, COL_GOLD);
+    doc.text(`CH ${String(ci+1).padStart(2,'0')}`, W - MR, 12, { align:'right' });
+
+    // chapter title
+    setFont('helvetica', 'bold', 15, COL_INK);
+    const hLines = doc.splitTextToSize(ch.title || '', TW);
+    let hy = 24;
+    hLines.forEach(line => { doc.text(line, ML, hy); hy += 7.5; });
+
+    // meta row
+    const metaY = bandH - 5;
+    setFont('helvetica', 'normal', 7.5, COL_MUTED);
+    const metaParts = [
+      `${ch.pages} pages`,
+      `${ch.input_tokens.toLocaleString()} in · ${ch.output_tokens.toLocaleString()} out tok`,
+      `${ch.time_seconds}s`,
+      `$${ch.cost_usd.toFixed(4)}`,
+    ];
+    doc.text(metaParts.join('   ·   '), ML, metaY);
+
+    drawRule(bandH + 1, COL_GOLD);
+
+    // ── Summary body ─────────────────────────────────────────────────────
+    let cy = bandH + 11;
+    const bodyMaxW = TW;
+    const lineH    = 5.6;
+    setFont('helvetica', 'normal', 10, COL_INK);
+
+    const summary  = ch.summary || '(No summary)';
+    const paragraphs = summary.split(/\n\n+/);
+
+    for(const para of paragraphs){
+      if(!para.trim()) continue;
+      const paraLines = doc.splitTextToSize(para.trim(), bodyMaxW);
+
+      // page break if needed
+      if(cy + paraLines.length * lineH > H - 18){
+        stampFooter(ch.title);
+        addPage();
+        fillRect(0, 0, W, H, COL_PAPER);
+
+        // continuation header stripe
+        fillRect(0, 0, W, 16, COL_PAPER2);
+        setFont('helvetica', 'italic', 8, COL_MUTED);
+        doc.text(ch.title + ' (continued)', ML, 10);
+        setFont('helvetica', 'bold', 8, COL_GOLD);
+        doc.text(`CH ${String(ci+1).padStart(2,'0')}`, W - MR, 10, { align:'right' });
+        drawRule(14.5, COL_RULE);
+        cy = 24;
+        setFont('helvetica', 'normal', 10, COL_INK);
+      }
+
+      doc.text(paraLines, ML, cy);
+      cy += paraLines.length * lineH + 3; // extra breathing room between paragraphs
+    }
+
+    // ── Chapter nav footer ───────────────────────────────────────────────
+    stampFooter(bookName);
+
+    // prev/next chapter navigation links at bottom
+    const navY = H - 13;
+    if(ci > 0){
+      setFont('helvetica', 'normal', 7.5, [169,120,47]);
+      doc.text('← Prev chapter', ML, navY);
+      doc.link(ML, navY - 4, 30, 6, { pageNumber: chapterPageMap[ci - 1] });
+    }
+    if(ci < data.chapters.length - 1){
+      setFont('helvetica', 'normal', 7.5, [169,120,47]);
+      doc.text('Next chapter →', W - MR, navY, { align:'right' });
+      // link target for next chapter will be set when that page is added;
+      // we store a forward reference and add the annotation after the loop.
+    }
+  }
+
+  // ── Back-fill prev/next forward links ───────────────────────────────────
+  // After the loop, all chapter pages exist. Now add the "Next chapter →"
+  // links (they needed the destination page number which only became known later).
+  for(let ci = 0; ci < data.chapters.length - 1; ci++){
+    const srcPage  = chapterPageMap[ci];
+    const destPage = chapterPageMap[ci + 1];
+    doc.setPage(srcPage);
+    doc.link(W - MR - 30, H - 17, 30, 6, { pageNumber: destPage });
+  }
+
+  // ── Back-fill ToC: page numbers + clickable links ────────────────────────
+  doc.setPage(tocPageNum);
+  for(const entry of tocEntries){
+    const dest = chapterPageMap[entry.chapterIdx];
+    if(dest == null) continue;
+
+    // Overwrite "--" with actual page number
+    // First blank out the old "--" text
+    fillRect(W - MR - 14, entry.y, 14, entry.h, COL_PAPER);  // erase area (alternating rows already applied)
+    // Also handle alternating fill
+    if(entry.chapterIdx % 2 === 0){
+      fillRect(W - MR - 14, entry.y, 14, entry.h, [245, 240, 231]);
+    }
+    setFont('helvetica', 'bold', 9, COL_INK);
+    doc.text(String(dest), W - MR, entry.y + entry.h - 2.5, { align:'right' });
+
+    // Clickable link over the entire row
+    doc.link(entry.x, entry.y, entry.w, entry.h, { pageNumber: dest });
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────
+  const safeName = bookName.replace(/[^a-z0-9_\-\s]/gi, '_').trim() || 'bookbrief';
+  doc.save(`${safeName}_summary.pdf`);
 }
 </script>
 </body>
