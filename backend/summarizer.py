@@ -13,7 +13,7 @@ import tiktoken
 from openai import OpenAI
 
 DEFAULT_MODEL = os.getenv("SUMMARY_MODEL", "gpt-4o-mini")
-MAX_CHUNK_TOKENS = int(os.getenv("MAX_CHUNK_TOKENS", "6000"))
+MAX_CHUNK_TOKENS = int(os.getenv("MAX_CHUNK_TOKENS", "12000"))
 MAX_CHUNK_WORKERS = int(os.getenv("MAX_CHUNK_WORKERS", "6"))
 
 # NOTE: no global OpenAI client here anymore. Each request brings its own
@@ -46,7 +46,7 @@ def _call_openai(client, system_prompt: str, user_prompt: str, max_tokens: int =
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.3,
+        temperature=0.1,
         max_tokens=max_tokens,
     )
     text = resp.choices[0].message.content.strip()

@@ -73,7 +73,13 @@ def preview_chapters():
 
     try:
         chapters, source, n_pages = extract_chapters(pdf_path, api_key=preview_api_key)
-        table = [{"title": c["title"], "part": c.get("part"), "pages": c["num_pages"]} for c in chapters]
+        table = [{
+            "title":      c["title"],
+            "part":       c.get("part"),
+            "pages":      c["num_pages"],
+            "start_page": c["start_page"],
+            "end_page":   c["end_page"],
+        } for c in chapters]
         return jsonify({
             "filename": filename,
             "total_pages": n_pages,
@@ -120,8 +126,35 @@ def summarize_book():
     requested_model = body.get("model", "gpt-4o-mini").strip()
     model = requested_model if requested_model in ALLOWED_MODELS else "gpt-4o-mini"
 
+    # If the frontend passes the already-detected chapter list (from preview),
+    # skip re-running extract_chapters entirely — just extract text for each
+    # chapter using the page ranges we already know. This avoids a redundant
+    # LLM TOC call and saves 10-20s on every summarize request.
+    cached_chapters = body.get("chapters")  # [{title, start_page, end_page, part}, ...]
+
     try:
-        chapters, source, n_pages = extract_chapters(pdf_path, api_key=api_key)
+        if cached_chapters and isinstance(cached_chapters, list) and len(cached_chapters) > 0:
+            import fitz
+            doc = fitz.open(pdf_path)
+            n_pages = doc.page_count
+            source  = body.get("detection_method", "cached")
+            chapters = []
+            for c in cached_chapters:
+                start = int(c.get("start_page", 0))
+                end   = int(c.get("end_page", n_pages - 1))
+                pages_text = [doc[p].get_text("text") for p in range(start, end + 1)]
+                chapters.append({
+                    "title":      c.get("title", ""),
+                    "part":       c.get("part"),
+                    "start_page": start,
+                    "end_page":   end,
+                    "num_pages":  end - start + 1,
+                    "text":       "\n".join(pages_text),
+                })
+            doc.close()
+        else:
+            chapters, source, n_pages = extract_chapters(pdf_path, api_key=api_key)
+
         run_logger = RunLogger(book_name=filename, num_pages=n_pages, source=source)
 
         # summarize all chapters concurrently, preserving original order in results

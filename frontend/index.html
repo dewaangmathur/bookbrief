@@ -995,6 +995,8 @@
 const API = '';
 let currentFilename = null;
 let lastResultData = null;
+let currentChapters = null;       // full chapter list from last preview (with start/end pages)
+let currentDetectionMethod = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const tocPanel         = document.getElementById('tocPanel');
@@ -1204,6 +1206,9 @@ async function loadToc(filename){
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Failed to detect chapters');
+    // cache for summarize — avoids re-running chapter detection
+    currentChapters = data.chapters;
+    currentDetectionMethod = data.detection_method;
     const maxPages = Math.max(...data.chapters.map(c => c.pages));
     tocMeta.textContent = `${data.total_pages} pages · ${data.chapters.length} chapters detected (method: ${data.detection_method})`;
 
@@ -1254,6 +1259,8 @@ summarizeBtn.addEventListener('click', async () => {
         words_per_page: parseInt(wppSlider.value),
         max_words: parseInt(maxWordsSlider.value),
         model: activeModel.id,
+        chapters: currentChapters,            // skip re-detection on backend
+        detection_method: currentDetectionMethod,
       })
     });
     const data = await res.json();

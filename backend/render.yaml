@@ -11,7 +11,7 @@ services:
       - key: SUMMARY_MODEL
         value: gpt-4o-mini
       - key: MAX_CHUNK_TOKENS
-        value: 6000
+        value: 12000
       - key: MAX_CHAPTER_WORKERS
         value: 4
       - key: MAX_CHUNK_WORKERS
