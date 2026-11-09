@@ -94,6 +94,13 @@ def summarize_book():
         return jsonify({"error": "No OpenAI API key provided"}), 400
     api_key = api_key.strip()
 
+    # Optional user-tunable summary density params
+    words_per_page = int(body.get("words_per_page", 55))
+    max_words      = int(body.get("max_words", 2200))
+    # Clamp to sane ranges
+    words_per_page = max(10, min(words_per_page, 300))
+    max_words      = max(100, min(max_words, 8000))
+
     try:
         chapters, source, n_pages = extract_chapters(pdf_path)
         run_logger = RunLogger(book_name=filename, num_pages=n_pages, source=source)
@@ -103,7 +110,8 @@ def summarize_book():
 
         def _work(idx, ch):
             summary, in_tok, out_tok, elapsed, chunks_used = summarize_chapter(
-                ch["title"], ch["text"], api_key=api_key, num_pages=ch["num_pages"]
+                ch["title"], ch["text"], api_key=api_key, num_pages=ch["num_pages"],
+                words_per_page=words_per_page, max_words=max_words,
             )
             return idx, ch, summary, in_tok, out_tok, elapsed, chunks_used
 

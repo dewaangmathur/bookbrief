@@ -73,14 +73,15 @@ FINAL_SYSTEM_PROMPT = (
 )
 
 
-def _target_word_count(num_pages: int) -> int:
+def _target_word_count(num_pages: int, words_per_page: int = 55, max_words: int = 2200) -> int:
     """
     Scales the target summary length with how many pages the chapter/section
     actually has, so a 50-page chapter isn't reduced to the same length
     as a 5-page one.
+    words_per_page and max_words are user-configurable (defaults: 55 wpp / 2200 max).
     """
-    words = int(num_pages * 55)
-    return max(110, min(words, 2200))
+    words = int(num_pages * words_per_page)
+    return max(110, min(words, max_words))
 
 
 def _max_tokens_for_words(word_count: int) -> int:
@@ -89,10 +90,12 @@ def _max_tokens_for_words(word_count: int) -> int:
     return min(int(word_count * 1.6) + 120, 4096)
 
 
-def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None, logger=None):
+def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None, logger=None,
+                      words_per_page: int = 55, max_words: int = 2200):
     """
     api_key: the user's own OpenAI key, passed in per-request. A fresh
     client is built here and never persisted anywhere.
+    words_per_page / max_words: user-configurable summary density.
     Returns (summary_text, input_tokens, output_tokens, elapsed_seconds, chunks_used)
     """
     client = OpenAI(api_key=api_key)
@@ -107,7 +110,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
         num_pages = max(1, count_tokens(text) // 700)
 
     chunks = chunk_text(text)
-    chapter_target_words = _target_word_count(num_pages)
+    chapter_target_words = _target_word_count(num_pages, words_per_page=words_per_page, max_words=max_words)
 
     if len(chunks) == 1:
         max_tok = _max_tokens_for_words(chapter_target_words)
