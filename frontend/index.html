@@ -1182,7 +1182,8 @@ async function loadToc(filename){
   tocBody.innerHTML = '';
   try{
     const res  = await fetch(`${API}/api/preview-chapters`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'X-OpenAI-Key': getApiKey()},
       body: JSON.stringify({filename})
     });
     const data = await res.json();
