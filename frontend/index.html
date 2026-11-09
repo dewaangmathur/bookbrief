@@ -147,6 +147,88 @@
   .dot{width:7px;height:7px;border-radius:50%;background:var(--gold-bright); animation:pulse 1.1s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:.3} 50%{opacity:1}}
 
+  /* ── Wake screen ───────────────────────────────────────────────────── */
+  #wakeScreen{
+    position:fixed; inset:0; z-index:999;
+    background:var(--paper);
+    background-image:
+      radial-gradient(ellipse at top left, rgba(169,120,47,0.08), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(74,93,67,0.07), transparent 55%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:0; padding:20px;
+    transition:opacity .6s ease;
+  }
+  #wakeScreen.fade-out{ opacity:0; pointer-events:none; }
+
+  .wake-eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:6px;
+  }
+  .wake-title{
+    font-family:'Fraunces', serif;
+    font-size:clamp(22px,4vw,34px); font-weight:600;
+    color:var(--ink); margin-bottom:4px; text-align:center;
+  }
+  .wake-sub{
+    font-family:'Source Serif 4', serif;
+    font-size:14px; color:var(--muted); font-style:italic;
+    margin-bottom:22px; text-align:center;
+  }
+
+  /* status messages */
+  .wake-status{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px; color:var(--muted);
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:6px; min-height:20px;
+  }
+  .wake-timer{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; color:var(--gold);
+    margin-bottom:18px;
+  }
+
+  /* progress bar */
+  .wake-bar-wrap{
+    width:min(320px, 80vw); height:4px;
+    background:var(--paper-2); border-radius:2px;
+    overflow:hidden; margin-bottom:24px;
+  }
+  .wake-bar-fill{
+    height:100%; width:0%;
+    background:linear-gradient(90deg, var(--gold), var(--gold-bright));
+    border-radius:2px;
+    transition:width .4s ease;
+  }
+
+  /* snake game */
+  .snake-wrap{
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .snake-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted);
+  }
+  #snakeCanvas{
+    border:2px solid var(--rule);
+    border-radius:4px;
+    background:var(--card);
+    display:block;
+    image-rendering:pixelated;
+  }
+  .snake-score{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px; color:var(--gold);
+  }
+  .snake-hint{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px; color:var(--muted); text-align:center;
+  }
+
+  /* ── Wake screen ───────────────────────────────────────────────────── */
+
   /* Model picker modal */
   .modal-backdrop{
     position:fixed; inset:0;
@@ -476,6 +558,26 @@
 </style>
 </head>
 <body>
+
+<!-- ── Wake screen (shown while Render cold-starts) ──────────────────── -->
+<div id="wakeScreen">
+  <div class="wake-eyebrow">BookBrief</div>
+  <div class="wake-title">Waking up the server…</div>
+  <div class="wake-sub">Free hosting sleeps after inactivity. Won't be long!</div>
+
+  <div class="wake-status"><span class="dot"></span><span id="wakeMsg">Pinging server…</span></div>
+  <div class="wake-timer" id="wakeTimer">0s elapsed</div>
+
+  <div class="wake-bar-wrap"><div class="wake-bar-fill" id="wakeBar"></div></div>
+
+  <div class="snake-wrap">
+    <div class="snake-label">🐍 Kill time — play Snake</div>
+    <canvas id="snakeCanvas" width="280" height="280"></canvas>
+    <div class="snake-score">Score: <span id="snakeScore">0</span> &nbsp;|&nbsp; Best: <span id="snakeBest">0</span></div>
+    <div class="snake-hint">Arrow keys or WASD to move · auto-starts in 1s</div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <header class="masthead">
@@ -1153,6 +1255,278 @@ function confirmSwitch(){
   updateChip();
   closeModelModal();
 }
+
+// ── Wake screen + Snake game ──────────────────────────────────────────────
+(function(){
+  const wakeScreen  = document.getElementById('wakeScreen');
+  const wakeMsgEl   = document.getElementById('wakeMsg');
+  const wakeTimerEl = document.getElementById('wakeTimer');
+  const wakeBarEl   = document.getElementById('wakeBar');
+
+  const MESSAGES = [
+    'Pinging server…',
+    'Server is waking up…',
+    'Still warming up, hang tight…',
+    'Almost there, just a few more seconds…',
+    'Free tier cold starts take ~50s, you\'re doing great…',
+    'Server is stretching its legs…',
+    'Any second now…',
+  ];
+
+  let elapsed   = 0;
+  let msgIdx    = 0;
+  let dismissed = false;
+
+  // progress bar fills over 60s (typical worst-case cold start)
+  const TOTAL_EXPECTED = 60;
+
+  function updateBar(){
+    const pct = Math.min((elapsed / TOTAL_EXPECTED) * 100, 95);
+    wakeBarEl.style.width = pct + '%';
+  }
+
+  const timer = setInterval(() => {
+    elapsed++;
+    wakeTimerEl.textContent = `${elapsed}s elapsed`;
+    updateBar();
+    // cycle through messages every ~7s
+    const nextIdx = Math.min(Math.floor(elapsed / 7), MESSAGES.length - 1);
+    if(nextIdx !== msgIdx){
+      msgIdx = nextIdx;
+      wakeMsgEl.textContent = MESSAGES[msgIdx];
+    }
+  }, 1000);
+
+  function dismiss(){
+    if(dismissed) return;
+    dismissed = true;
+    clearInterval(timer);
+    stopSnake();
+    wakeBarEl.style.width = '100%';
+    wakeBarEl.style.background = 'var(--green)';
+    wakeMsgEl.textContent = 'Server is ready!';
+    wakeTimerEl.textContent = `Ready in ${elapsed}s`;
+    setTimeout(() => {
+      wakeScreen.classList.add('fade-out');
+      setTimeout(() => { wakeScreen.style.display = 'none'; }, 650);
+    }, 600);
+  }
+
+  // Poll the /api/books endpoint — it's cheap and representative
+  async function ping(){
+    try{
+      const res = await fetch('/api/books', { signal: AbortSignal.timeout(90000) });
+      if(res.ok) dismiss();
+      else scheduleRetry();
+    } catch(e){
+      if(!dismissed) scheduleRetry();
+    }
+  }
+
+  function scheduleRetry(){
+    if(!dismissed) setTimeout(ping, 3000);
+  }
+
+  // If server responds within 800ms it was already warm — skip wake screen
+  const fastCheck = fetch('/api/books', { signal: AbortSignal.timeout(800) })
+    .then(r => { if(r.ok) dismiss(); })
+    .catch(() => {});
+
+  // Start proper polling after 800ms (give fast check a head start)
+  setTimeout(ping, 800);
+
+  // ── Snake game ───────────────────────────────────────────────────────
+  const canvas    = document.getElementById('snakeCanvas');
+  const ctx       = canvas.getContext('2d');
+  const scoreEl   = document.getElementById('snakeScore');
+  const bestEl    = document.getElementById('snakeBest');
+
+  const GRID = 20;        // cells
+  const CELL = canvas.width / GRID;  // px per cell = 14
+  const TICK = 120;       // ms per step
+
+  // BookBrief palette
+  const C_BG     = '#fbf8f1';
+  const C_GRID   = '#ece3d1';
+  const C_SNAKE  = '#a9782f';
+  const C_HEAD   = '#1c1b19';
+  const C_FOOD   = '#4a5d43';
+  const C_DEAD   = '#c0392b';
+  const C_TEXT   = '#6f6656';
+
+  let snake, dir, nextDir, food, score, best, gameLoop, alive;
+
+  best = 0;
+
+  function randCell(){
+    return { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+  }
+
+  function placeFood(){
+    let f;
+    do { f = randCell(); }
+    while(snake.some(s => s.x === f.x && s.y === f.y));
+    return f;
+  }
+
+  function initGame(){
+    const mid = Math.floor(GRID / 2);
+    snake   = [{ x: mid, y: mid }, { x: mid - 1, y: mid }, { x: mid - 2, y: mid }];
+    dir     = { x: 1, y: 0 };
+    nextDir = { x: 1, y: 0 };
+    food    = placeFood();
+    score   = 0;
+    alive   = true;
+    scoreEl.textContent = '0';
+    draw();
+  }
+
+  function step(){
+    if(!alive) return;
+    dir = nextDir;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+    // wall collision
+    if(head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID){
+      die(); return;
+    }
+    // self collision
+    if(snake.some(s => s.x === head.x && s.y === head.y)){
+      die(); return;
+    }
+
+    snake.unshift(head);
+
+    if(head.x === food.x && head.y === food.y){
+      score++;
+      if(score > best) best = score;
+      scoreEl.textContent = score;
+      bestEl.textContent  = best;
+      food = placeFood();
+    } else {
+      snake.pop();
+    }
+
+    draw();
+  }
+
+  function die(){
+    alive = false;
+    drawDead();
+    setTimeout(initGame, 1200);
+  }
+
+  function draw(){
+    // background
+    ctx.fillStyle = C_BG;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // subtle grid
+    ctx.strokeStyle = C_GRID;
+    ctx.lineWidth = 0.5;
+    for(let i = 0; i <= GRID; i++){
+      ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(canvas.width, i * CELL); ctx.stroke();
+    }
+
+    // food — book emoji style: green square with rounded corners
+    ctx.fillStyle = C_FOOD;
+    roundRect(ctx, food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4, 3);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `${CELL - 5}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('📖', food.x * CELL + CELL / 2, food.y * CELL + CELL / 2 + 1);
+
+    // snake body
+    snake.forEach((seg, i) => {
+      ctx.fillStyle = i === 0 ? C_HEAD : C_SNAKE;
+      const inset = i === 0 ? 1 : 2;
+      roundRect(ctx, seg.x * CELL + inset, seg.y * CELL + inset, CELL - inset*2, CELL - inset*2, i === 0 ? 4 : 3);
+      ctx.fill();
+    });
+  }
+
+  function drawDead(){
+    draw();
+    ctx.fillStyle = 'rgba(243,237,225,0.75)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = C_DEAD;
+    ctx.font = `bold ${CELL * 1.1}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
+    ctx.fillStyle = C_TEXT;
+    ctx.font = `${CELL * 0.75}px 'JetBrains Mono', monospace`;
+    ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 14);
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // controls
+  const KEY_MAP = {
+    ArrowUp:    { x: 0, y: -1 }, ArrowDown:  { x: 0, y: 1 },
+    ArrowLeft:  { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
+    w: { x: 0, y: -1 }, s: { x: 0, y: 1 },
+    a: { x: -1, y: 0 }, d: { x: 1, y: 0 },
+  };
+
+  document.addEventListener('keydown', e => {
+    if(dismissed) return;
+    const d = KEY_MAP[e.key];
+    if(!d) return;
+    // prevent reversing
+    if(d.x === -dir.x && d.y === -dir.y) return;
+    nextDir = d;
+    // prevent page scroll on arrow keys
+    if(e.key.startsWith('Arrow')) e.preventDefault();
+  });
+
+  // touch / swipe support
+  let touchStart = null;
+  canvas.addEventListener('touchstart', e => {
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  canvas.addEventListener('touchend', e => {
+    if(!touchStart) return;
+    const dx = e.changedTouches[0].clientX - touchStart.x;
+    const dy = e.changedTouches[0].clientY - touchStart.y;
+    if(Math.abs(dx) > Math.abs(dy)){
+      const d = dx > 0 ? { x:1,y:0 } : { x:-1,y:0 };
+      if(!(d.x === -dir.x)) nextDir = d;
+    } else {
+      const d = dy > 0 ? { x:0,y:1 } : { x:0,y:-1 };
+      if(!(d.y === -dir.y)) nextDir = d;
+    }
+    touchStart = null;
+  }, { passive: true });
+
+  function startSnake(){
+    initGame();
+    gameLoop = setInterval(step, TICK);
+  }
+
+  function stopSnake(){
+    clearInterval(gameLoop);
+  }
+
+  // auto-start snake after 1s
+  setTimeout(startSnake, 1000);
+
+})();
 
 // ── PDF export ────────────────────────────────────────────────────────────
 downloadPdfBtn.addEventListener('click', () => {
