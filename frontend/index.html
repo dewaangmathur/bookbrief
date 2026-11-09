@@ -535,13 +535,25 @@ const DEFAULT_WPP = 50;
 const DEFAULT_MAX = 1000;
 
 function updateParamsPreview(){
-  const wpp      = parseInt(wppSlider.value);
-  const maxW     = parseInt(maxWordsSlider.value);
-  const example  = 20; // "20 pages" example
-  const computed = Math.min(example * wpp, maxW);
+  const wpp       = parseInt(wppSlider.value);
+  const maxW      = parseInt(maxWordsSlider.value);
+  const example   = 20; // "20 pages" example
+  const uncapped  = example * wpp;
+  const computed  = Math.min(uncapped, maxW);
+  const isCapped  = uncapped > maxW;
+
   wppVal.textContent      = `${wpp} w/p`;
   maxWordsVal.textContent = `${maxW.toLocaleString()} w`;
-  paramsPreview.textContent = `${example} pages → ~${computed.toLocaleString()} words`;
+
+  if(isCapped){
+    paramsPreview.innerHTML =
+      `${example} pages → <s style="opacity:.45">${uncapped.toLocaleString()}</s> <b>${computed.toLocaleString()} words</b> ` +
+      `<span style="color:var(--gold-bright);font-size:11px;">⚠ capped by max</span>`;
+    paramsPreview.style.borderColor = 'rgba(169,120,47,0.5)';
+  } else {
+    paramsPreview.textContent = `${example} pages → ~${computed.toLocaleString()} words`;
+    paramsPreview.style.borderColor = 'rgba(169,120,47,0.2)';
+  }
 }
 
 wppSlider.addEventListener('input', updateParamsPreview);
