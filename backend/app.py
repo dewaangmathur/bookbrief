@@ -68,8 +68,11 @@ def preview_chapters():
     if not os.path.exists(pdf_path):
         return jsonify({"error": f"{filename} not found in backend/data/"}), 404
 
+    # Use API key for LLM-assisted TOC extraction if the user has one saved
+    preview_api_key = (request.headers.get("X-OpenAI-Key") or body.get("api_key", "")).strip() or None
+
     try:
-        chapters, source, n_pages = extract_chapters(pdf_path)
+        chapters, source, n_pages = extract_chapters(pdf_path, api_key=preview_api_key)
         table = [{"title": c["title"], "part": c.get("part"), "pages": c["num_pages"]} for c in chapters]
         return jsonify({
             "filename": filename,
@@ -118,7 +121,7 @@ def summarize_book():
     model = requested_model if requested_model in ALLOWED_MODELS else "gpt-4o-mini"
 
     try:
-        chapters, source, n_pages = extract_chapters(pdf_path)
+        chapters, source, n_pages = extract_chapters(pdf_path, api_key=api_key)
         run_logger = RunLogger(book_name=filename, num_pages=n_pages, source=source)
 
         # summarize all chapters concurrently, preserving original order in results
