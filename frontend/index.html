@@ -298,7 +298,107 @@
 
   /* ── Wake screen ───────────────────────────────────────────────────── */
 
-  /* Model picker modal */
+  /* ── API key bar ───────────────────────────────────────────────────── */
+  .key-bar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background:var(--card); border:1px solid var(--rule);
+    border-radius:4px; padding:14px 20px; margin-bottom:20px;
+    box-shadow:var(--shadow);
+  }
+  .key-saved-chip{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    color:var(--green); flex:1;
+  }
+  .key-saved-chip .dot-green{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--green); flex-shrink:0;
+  }
+  .key-change-btn{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--muted); background:none; border:none; padding:0;
+    cursor:pointer; text-decoration:underline; text-transform:none;
+    letter-spacing:0;
+  }
+  .key-change-btn:hover{ color:var(--gold); background:none; }
+  .key-input-row{
+    display:flex; gap:10px; align-items:center; flex:1; flex-wrap:wrap;
+  }
+  .key-input{
+    flex:1; min-width:200px;
+    font-family:'JetBrains Mono', monospace; font-size:13px;
+    padding:9px 12px; background:var(--paper);
+    border:1px solid var(--rule); border-radius:3px; color:var(--ink);
+  }
+  .key-input:focus{ outline:none; border-color:var(--gold); }
+  .key-hint{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--muted); flex:1; min-width:100%;
+  }
+  .key-hint a{ color:var(--gold); }
+
+  /* ── Drop zone ─────────────────────────────────────────────────────── */
+  .drop-zone{
+    border:2px dashed var(--rule);
+    border-radius:6px;
+    padding:40px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:var(--card);
+    position:relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over{
+    border-color:var(--gold);
+    background:rgba(169,120,47,0.04);
+  }
+  .drop-zone input[type=file]{
+    position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+  }
+  .drop-icon{ font-size:36px; margin-bottom:10px; }
+  .drop-title{
+    font-family:'Fraunces', serif; font-size:18px; font-weight:600;
+    color:var(--ink); margin-bottom:6px;
+  }
+  .drop-sub{
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    color:var(--muted);
+  }
+  .drop-uploading{
+    font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    color:var(--gold); margin-top:12px;
+    display:none; align-items:center; gap:8px; justify-content:center;
+  }
+  .drop-uploading.active{ display:flex; }
+
+  /* ── Recent books ──────────────────────────────────────────────────── */
+  .recent-books{
+    margin-top:16px; padding-top:14px;
+    border-top:1px solid var(--rule);
+  }
+  .recent-label{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    margin-bottom:10px;
+  }
+  .recent-list{
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .recent-chip{
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    padding:6px 12px; border:1px solid var(--rule);
+    border-radius:20px; cursor:pointer; color:var(--ink);
+    background:var(--paper-2);
+    transition:border-color .12s, background .12s;
+    max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .recent-chip:hover{ border-color:var(--gold); background:rgba(169,120,47,0.06); }
+  .recent-empty{
+    font-family:'JetBrains Mono', monospace; font-size:11.5px;
+    color:var(--muted); font-style:italic;
+  }
+
+  /* ── Model picker modal ─────────────────────────────────────────────── */
   .modal-backdrop{
     position:fixed; inset:0;
     background:rgba(28,27,25,0.55);
@@ -656,30 +756,46 @@
     <button class="info-btn" onclick="openInfoModal()" title="Usage limits & cost info">👁</button>
   </header>
 
-  <!-- Step 0: API Key -->
-  <div class="panel" id="apiKeyPanel">
-    <h2><span class="num">0</span> Your OpenAI API key</h2>
-    <div class="row">
-      <input type="password" id="apiKeyInput" placeholder="sk-..." style="flex:1; min-width:240px; font-family:'JetBrains Mono', monospace; font-size:13px; padding:9px 12px; background:var(--paper); border:1px solid var(--rule); border-radius:3px; color:var(--ink);" />
-      <button class="secondary" id="saveKeyBtn">Save key</button>
-      <button class="secondary" id="clearKeyBtn">Clear key</button>
+  <!-- API Key bar -->
+  <div class="key-bar" id="keyBar">
+    <!-- saved state -->
+    <div class="key-saved-chip" id="keySavedChip" style="display:none;">
+      <span class="dot-green"></span>
+      <span>OpenAI key saved on this device</span>
     </div>
-    <div class="hint">Stored only in your browser (localStorage) — never sent to us or saved on any server. Get one at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--gold);">platform.openai.com/api-keys</a></div>
+    <button class="key-change-btn" id="keyChangeBtn" style="display:none;" onclick="promptKeyChange()">Change</button>
+
+    <!-- input state -->
+    <div class="key-input-row" id="keyInputRow">
+      <input type="password" class="key-input" id="apiKeyInput" placeholder="Paste your OpenAI API key (sk-…)" autocomplete="off" />
+      <div class="key-hint">
+        Saved only on this device — never stored on our server. &nbsp;
+        <a href="https://platform.openai.com/api-keys" target="_blank">Get a key →</a>
+      </div>
+    </div>
   </div>
 
   <!-- Step 1: Book -->
   <div class="panel">
     <h2><span class="num">1</span> Choose your book</h2>
-    <div class="row">
+
+    <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="application/pdf" />
-      <button class="secondary" id="uploadBtn">Upload</button>
+      <div class="drop-icon">📖</div>
+      <div class="drop-title">Drop your PDF here</div>
+      <div class="drop-sub">or click to browse — text-based PDFs only</div>
     </div>
-    <div class="hint">or pick one already placed in backend/data/</div>
-    <div class="row" style="margin-top:10px;">
-      <select id="bookSelect"><option value="">— select a book —</option></select>
-      <button class="secondary" id="refreshBtn">↻ Refresh</button>
+    <div class="drop-uploading" id="uploadStatus">
+      <span class="dot"></span><span id="uploadStatusMsg">Uploading…</span>
     </div>
-    <div class="status" id="uploadStatus"><span class="dot"></span><span>Uploading…</span></div>
+
+    <!-- Recent books -->
+    <div class="recent-books" id="recentBooksSection">
+      <div class="recent-label">Recently uploaded</div>
+      <div class="recent-list" id="recentList">
+        <span class="recent-empty">No books yet — upload one above</span>
+      </div>
+    </div>
   </div>
 
   <!-- Step 2: TOC -->
@@ -772,7 +888,7 @@
     </div>
   </div>
 
-  <footer id="footerEl">BookBrief — gpt-4o-mini · PyMuPDF · Flask — logs saved to backend/logs/</footer>
+  <footer id="footerEl">BookBrief · gpt-4o-mini · Made with ☕</footer>
 </div>
 
 <!-- ── Info / limits modal ───────────────────────────────────────────── -->
@@ -861,11 +977,6 @@ let currentFilename = null;
 let lastResultData = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
-const fileInput        = document.getElementById('fileInput');
-const uploadBtn        = document.getElementById('uploadBtn');
-const bookSelect       = document.getElementById('bookSelect');
-const refreshBtn       = document.getElementById('refreshBtn');
-const uploadStatus     = document.getElementById('uploadStatus');
 const tocPanel         = document.getElementById('tocPanel');
 const tocMeta          = document.getElementById('tocMeta');
 const tocBody          = document.getElementById('tocBody');
@@ -887,31 +998,49 @@ function showErr(msg){ errBox.textContent = msg; errBox.classList.add('active');
 function clearErr(){ errBox.classList.remove('active'); errBox.textContent=''; }
 
 // ── API key ───────────────────────────────────────────────────────────────
-const apiKeyInput = document.getElementById('apiKeyInput');
-const saveKeyBtn  = document.getElementById('saveKeyBtn');
-const clearKeyBtn = document.getElementById('clearKeyBtn');
+const apiKeyInput    = document.getElementById('apiKeyInput');
+const keySavedChip   = document.getElementById('keySavedChip');
+const keyChangeBtn   = document.getElementById('keyChangeBtn');
+const keyInputRow    = document.getElementById('keyInputRow');
 
-apiKeyInput.value = localStorage.getItem('openai_api_key') || '';
+function renderKeyBar(){
+  const saved = localStorage.getItem('openai_api_key');
+  if(saved){
+    keySavedChip.style.display = 'flex';
+    keyChangeBtn.style.display = 'block';
+    keyInputRow.style.display  = 'none';
+  } else {
+    keySavedChip.style.display = 'none';
+    keyChangeBtn.style.display = 'none';
+    keyInputRow.style.display  = 'flex';
+    apiKeyInput.focus();
+  }
+}
 
-saveKeyBtn.addEventListener('click', () => {
-  const key = apiKeyInput.value.trim();
-  if(!key){ showErr('Enter your OpenAI API key first.'); return; }
-  localStorage.setItem('openai_api_key', key);
-  clearErr();
-  saveKeyBtn.textContent = '✓ Saved';
-  setTimeout(() => { saveKeyBtn.textContent = 'Save key'; }, 1500);
+// auto-save on input after short debounce
+let keyDebounce;
+apiKeyInput.addEventListener('input', () => {
+  clearTimeout(keyDebounce);
+  keyDebounce = setTimeout(() => {
+    const key = apiKeyInput.value.trim();
+    if(key.startsWith('sk-') && key.length > 20){
+      localStorage.setItem('openai_api_key', key);
+      renderKeyBar();
+    }
+  }, 600);
 });
 
-clearKeyBtn.addEventListener('click', () => {
+function promptKeyChange(){
+  if(!confirm('Change your saved OpenAI API key?')) return;
   localStorage.removeItem('openai_api_key');
-  apiKeyInput.value = '';
-  clearKeyBtn.textContent = '✓ Cleared';
-  setTimeout(() => { clearKeyBtn.textContent = 'Clear key'; }, 1500);
-});
+  renderKeyBar();
+}
 
 function getApiKey(){
   return localStorage.getItem('openai_api_key') || apiKeyInput.value.trim();
 }
+
+renderKeyBar();
 
 // ── Summary parameters ────────────────────────────────────────────────────
 const DEFAULT_WPP = 50;
@@ -950,34 +1079,94 @@ resetParamsBtn.addEventListener('click', () => {
 });
 
 // ── Books ─────────────────────────────────────────────────────────────────
-async function refreshBooks(){
-  const res  = await fetch(`${API}/api/books`);
-  const data = await res.json();
-  bookSelect.innerHTML = '<option value="">— select a book —</option>' +
-    data.books.map(b => `<option value="${b}">${b}</option>`).join('');
-}
-refreshBtn.addEventListener('click', refreshBooks);
-refreshBooks();
+const dropZone      = document.getElementById('dropZone');
+const fileInput     = document.getElementById('fileInput');
+const uploadStatus  = document.getElementById('uploadStatus');
+const uploadStatusMsg = document.getElementById('uploadStatusMsg');
+const recentList    = document.getElementById('recentList');
 
-uploadBtn.addEventListener('click', async () => {
-  if(!fileInput.files.length){ showErr('Choose a PDF file first.'); return; }
-  clearErr();
-  const fd = new FormData();
-  fd.append('file', fileInput.files[0]);
-  uploadStatus.classList.add('active');
+// recent books stored in localStorage as JSON array
+function getRecentBooks(){
+  try{ return JSON.parse(localStorage.getItem('recent_books') || '[]'); }
+  catch{ return []; }
+}
+function addRecentBook(filename){
+  let books = getRecentBooks().filter(b => b !== filename);
+  books.unshift(filename);
+  books = books.slice(0, 8); // keep last 8
+  localStorage.setItem('recent_books', JSON.stringify(books));
+  renderRecentBooks();
+}
+function renderRecentBooks(){
+  const books = getRecentBooks();
+  if(!books.length){
+    recentList.innerHTML = '<span class="recent-empty">No books yet — upload one above</span>';
+    return;
+  }
+  recentList.innerHTML = books.map(b => `
+    <div class="recent-chip" title="${escapeHtml(b)}" onclick="loadToc('${escapeHtml(b)}')">${escapeHtml(b.replace(/\.pdf$/i,''))}</div>
+  `).join('');
+}
+renderRecentBooks();
+
+// fetch server book list silently to sync recent list
+async function syncServerBooks(){
   try{
+    const res  = await fetch(`${API}/api/books`);
+    const data = await res.json();
+    // add any server-side books not in recent list
+    const recent = getRecentBooks();
+    let changed = false;
+    for(const b of (data.books || [])){
+      if(!recent.includes(b)){ recent.push(b); changed = true; }
+    }
+    if(changed){
+      localStorage.setItem('recent_books', JSON.stringify(recent.slice(0,8)));
+      renderRecentBooks();
+    }
+  }catch{}
+}
+syncServerBooks();
+
+async function uploadFile(file){
+  if(!file || !file.name.toLowerCase().endsWith('.pdf')){
+    showErr('Please upload a PDF file.'); return;
+  }
+  clearErr();
+  uploadStatusMsg.textContent = `Uploading ${file.name}…`;
+  uploadStatus.classList.add('active');
+  dropZone.style.opacity = '0.6';
+  try{
+    const fd = new FormData();
+    fd.append('file', file);
     const res  = await fetch(`${API}/api/upload`, { method:'POST', body: fd });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Upload failed');
-    await refreshBooks();
-    bookSelect.value = data.filename;
+    addRecentBook(data.filename);
     loadToc(data.filename);
   }catch(e){ showErr(e.message); }
-  finally{ uploadStatus.classList.remove('active'); }
+  finally{
+    uploadStatus.classList.remove('active');
+    dropZone.style.opacity = '1';
+  }
+}
+
+// file input change (click to browse)
+fileInput.addEventListener('change', () => {
+  if(fileInput.files[0]) uploadFile(fileInput.files[0]);
 });
 
-bookSelect.addEventListener('change', () => {
-  if(bookSelect.value) loadToc(bookSelect.value);
+// drag and drop
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) uploadFile(file);
 });
 
 async function loadToc(filename){
@@ -1282,7 +1471,7 @@ function updateChip(){
   badge.textContent = activeModel.tierLabel;
   badge.className = `cost-badge cost-${activeModel.tier}`;
   document.getElementById('footerEl').textContent =
-    `BookBrief — ${activeModel.name} · PyMuPDF · Flask — logs saved to backend/logs/`;
+    `BookBrief · ${activeModel.name} · Made with ☕`;
 }
 
 function renderModelList(){
