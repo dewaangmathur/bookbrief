@@ -879,7 +879,7 @@ function generateBeautifulPdf(data){
   doc.setDrawColor(...COL_RULE); doc.setLineWidth(0.3);
   doc.rect(ML, statsY - 6, TW, statItems.length * 9 + 12);
 
-  statItems.forEach(([label, value], i){
+  statItems.forEach(([label, value], i) => {
     const sy = statsY + i * 9;
     setFont('helvetica', 'bold', 8.5, COL_MUTED);
     doc.text(label.toUpperCase(), ML + 8, sy);
