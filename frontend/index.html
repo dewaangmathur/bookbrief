@@ -782,46 +782,44 @@
 
     <div class="info-grid">
       <div class="info-card green">
-        <div class="info-card-label">Free tier hours</div>
-        <div class="info-card-val">750 h/mo</div>
-        <div class="info-card-sub">Render free plan</div>
+        <div class="info-card-label">Books per month</div>
+        <div class="info-card-val">~450</div>
+        <div class="info-card-sub">500-page books, totally free</div>
       </div>
       <div class="info-card green">
-        <div class="info-card-label">Your est. usage</div>
-        <div class="info-card-val">~4 h/mo</div>
-        <div class="info-card-sub">1 book/day · 500 pages</div>
+        <div class="info-card-label">Books per day</div>
+        <div class="info-card-val">~15</div>
+        <div class="info-card-sub">500-page books, no problem</div>
       </div>
       <div class="info-card gold">
-        <div class="info-card-label">Safe daily limit</div>
-        <div class="info-card-val">~800 p/day</div>
-        <div class="info-card-sub">Comfortable on free tier</div>
+        <div class="info-card-label">Your OpenAI cost</div>
+        <div class="info-card-val">~$0.10</div>
+        <div class="info-card-sub">per 500-page book (default model)</div>
       </div>
       <div class="info-card gold">
-        <div class="info-card-label">RAM limit</div>
-        <div class="info-card-val">512 MB</div>
-        <div class="info-card-sub">Watch for 1000+ page PDFs</div>
+        <div class="info-card-label">Max book size</div>
+        <div class="info-card-val">~800 pg</div>
+        <div class="info-card-sub">beyond this may crash on free plan</div>
       </div>
     </div>
 
-    <div class="info-section-title">Cost per book (gpt-4o-mini)</div>
-    <div class="info-row">100 pages <span>~$0.01 – $0.03</span></div>
-    <div class="info-row">300 pages <span>~$0.03 – $0.08</span></div>
-    <div class="info-row">500 pages <span>~$0.05 – $0.15</span></div>
-    <div class="info-row">1000 pages <span>~$0.10 – $0.30</span></div>
+    <div class="info-section-title">What does it cost me? (default model · gpt-4o-mini)</div>
+    <div class="info-row">Short book · ~100 pages <span>~$0.02</span></div>
+    <div class="info-row">Average book · ~300 pages <span>~$0.05</span></div>
+    <div class="info-row">Long book · ~500 pages <span>~$0.10</span></div>
+    <div class="info-row">Very long book · ~800 pages <span>~$0.20</span></div>
 
-    <div class="info-section-title">Model cost multipliers vs gpt-4o-mini</div>
-    <div class="info-row">gpt-4.1-nano <span>~0.6× cheaper</span></div>
-    <div class="info-row">gpt-4.1-mini <span>~3× more expensive</span></div>
-    <div class="info-row">gpt-4o <span>~15× more expensive</span></div>
-    <div class="info-row">gpt-4.1 <span>~12× more expensive</span></div>
-    <div class="info-row">o3 / gpt-5 <span>~60× more expensive</span></div>
-    <div class="info-row">gpt-4.5 <span>~500× more expensive</span></div>
+    <div class="info-section-title">Switching to a fancier model?</div>
+    <div class="info-row">gpt-4.1-nano &nbsp;🟢 <span>even cheaper than default</span></div>
+    <div class="info-row">gpt-4o &nbsp;🔴 <span>~15× your bill</span></div>
+    <div class="info-row">o3 or gpt-5 &nbsp;🔴 <span>~60× your bill</span></div>
+    <div class="info-row">gpt-4.5 &nbsp;🟣 <span>~500× your bill — avoid!</span></div>
 
     <div class="info-warn">
-      ⚠ PDFs over ~800 pages may hit the 512 MB RAM limit on Render's free tier and crash.
-      Upgrade to the $7/mo Starter plan (2 GB RAM) if you regularly process large books.
+      ⏱ <b>Why does it take so long to load sometimes?</b><br>
+      The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that's what the Snake game is for while you wait!
       <br><br>
-      ⏱ Render free instances sleep after 15 min of inactivity — that's what the Snake screen is for.
+      ⚠ <b>Book too big?</b> If your PDF is over ~800 pages it might crash on the free plan. Try splitting it or upgrading hosting.
     </div>
 
     <div class="modal-row" style="margin-top:18px;">
