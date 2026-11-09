@@ -101,6 +101,16 @@ def summarize_book():
     words_per_page = max(10, min(words_per_page, 300))
     max_words      = max(100, min(max_words, 8000))
 
+    # Model selection — whitelist to prevent arbitrary strings hitting OpenAI
+    ALLOWED_MODELS = {
+        "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4",
+        "gpt-3.5-turbo", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
+        "gpt-4.5", "gpt-5",
+        "o1", "o1-mini", "o3", "o3-mini", "o4-mini",
+    }
+    requested_model = body.get("model", "gpt-4o-mini").strip()
+    model = requested_model if requested_model in ALLOWED_MODELS else "gpt-4o-mini"
+
     try:
         chapters, source, n_pages = extract_chapters(pdf_path)
         run_logger = RunLogger(book_name=filename, num_pages=n_pages, source=source)
@@ -111,7 +121,7 @@ def summarize_book():
         def _work(idx, ch):
             summary, in_tok, out_tok, elapsed, chunks_used = summarize_chapter(
                 ch["title"], ch["text"], api_key=api_key, num_pages=ch["num_pages"],
-                words_per_page=words_per_page, max_words=max_words,
+                words_per_page=words_per_page, max_words=max_words, model=model,
             )
             return idx, ch, summary, in_tok, out_tok, elapsed, chunks_used
 

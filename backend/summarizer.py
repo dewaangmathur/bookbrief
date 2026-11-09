@@ -12,7 +12,7 @@ import concurrent.futures
 import tiktoken
 from openai import OpenAI
 
-MODEL = os.getenv("SUMMARY_MODEL", "gpt-4o-mini")
+DEFAULT_MODEL = os.getenv("SUMMARY_MODEL", "gpt-4o-mini")
 MAX_CHUNK_TOKENS = int(os.getenv("MAX_CHUNK_TOKENS", "6000"))
 MAX_CHUNK_WORKERS = int(os.getenv("MAX_CHUNK_WORKERS", "6"))
 
@@ -39,9 +39,9 @@ def chunk_text(text: str, max_tokens: int = MAX_CHUNK_TOKENS):
     return chunks if chunks else [""]
 
 
-def _call_openai(client, system_prompt: str, user_prompt: str, max_tokens: int = 1000):
+def _call_openai(client, system_prompt: str, user_prompt: str, max_tokens: int = 1000, model: str = None):
     resp = client.chat.completions.create(
-        model=MODEL,
+        model=model or DEFAULT_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -91,7 +91,7 @@ def _max_tokens_for_words(word_count: int) -> int:
 
 
 def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None, logger=None,
-                      words_per_page: int = 55, max_words: int = 2200):
+                      words_per_page: int = 55, max_words: int = 2200, model: str = None):
     """
     api_key: the user's own OpenAI key, passed in per-request. A fresh
     client is built here and never persisted anywhere.
@@ -121,7 +121,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
             f"cut it short.\n\n"
             f"Chapter text:\n{chunks[0]}"
         )
-        summary, in_tok, out_tok = _call_openai(client, CHUNK_SYSTEM_PROMPT, user_prompt, max_tok)
+        summary, in_tok, out_tok = _call_openai(client, CHUNK_SYSTEM_PROMPT, user_prompt, max_tok, model=model)
         total_in += in_tok
         total_out += out_tok
         elapsed = time.time() - start
@@ -142,7 +142,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
                 f"every distinct point in this section, don't skip any.\n\n"
                 f"Text:\n{chunk}"
             )
-            fut = pool.submit(_call_openai, client, CHUNK_SYSTEM_PROMPT, user_prompt, chunk_max_tok)
+            fut = pool.submit(_call_openai, client, CHUNK_SYSTEM_PROMPT, user_prompt, chunk_max_tok, model)
             future_to_idx[fut] = idx
 
         for fut in concurrent.futures.as_completed(future_to_idx):
@@ -163,7 +163,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
         f"final combined summary - use the full length to preserve every "
         f"point from the section summaries below.\n\n{combined}"
     )
-    final_summary, in_tok, out_tok = _call_openai(client, FINAL_SYSTEM_PROMPT, final_prompt, final_max_tok)
+    final_summary, in_tok, out_tok = _call_openai(client, FINAL_SYSTEM_PROMPT, final_prompt, final_max_tok, model=model)
     total_in += in_tok
     total_out += out_tok
 
