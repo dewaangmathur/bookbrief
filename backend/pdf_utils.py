@@ -109,9 +109,9 @@ def _get_regex_chapters(doc):
         page = doc[pno]
         text = page.get_text("text")
         lines = [l.strip() for l in text.split("\n") if l.strip()]
-        # only look at first ~6 non-empty lines of the page (chapter headings
-        # are typically near the top)
-        for line in lines[:6]:
+        # only look at first ~12 non-empty lines of the page (chapter headings
+        # are typically near the top; 12 gives room for headers/running titles)
+        for line in lines[:12]:
             for rx in CHAPTER_REGEXES:
                 if rx.match(line) and len(line) < 100:
                     candidates.append((pno, line))
@@ -159,6 +159,40 @@ def extract_chapters(pdf_path: str):
     if not chapters:
         chapters = [{"title": "Full Book", "part": None, "start_page": 0, "end_page": n_pages - 1}]
         source = "fallback_single"
+
+    # Auto-split any chapter that is unreasonably large (> 80 pages).
+    # This most commonly happens when the whole book falls back to a single
+    # "Full Book" chapter, or when a genuine chapter is enormous.
+    # Splitting into ~50-page chunks ensures parallelism and keeps token
+    # counts manageable without hammering the model with one monster request.
+    SPLIT_THRESHOLD = 80   # pages — split if a chapter exceeds this
+    SPLIT_CHUNK     = 50   # pages — target size for each split chunk
+
+    split_chapters = []
+    for ch in chapters:
+        num = ch["end_page"] - ch["start_page"] + 1
+        if num > SPLIT_THRESHOLD:
+            # slice into SPLIT_CHUNK-page pieces
+            start = ch["start_page"]
+            part_num = 1
+            while start <= ch["end_page"]:
+                end = min(start + SPLIT_CHUNK - 1, ch["end_page"])
+                split_chapters.append({
+                    "title": f"{ch['title']} (Part {part_num})" if ch["title"] != "Full Book"
+                             else f"Pages {start + 1}–{end + 1}",
+                    "part":  ch.get("part"),
+                    "start_page": start,
+                    "end_page":   end,
+                })
+                start = end + 1
+                part_num += 1
+            # update source label to signal splitting happened
+            if source == "fallback_single":
+                source = "fallback_split"
+        else:
+            split_chapters.append(ch)
+
+    chapters = split_chapters
 
     for ch in chapters:
         pages_text = []

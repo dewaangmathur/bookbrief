@@ -22,7 +22,13 @@ os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB hard limit
 CORS(app)
+
+
+@app.errorhandler(413)
+def file_too_large(e):
+    return jsonify({"error": "PDF is too large — maximum file size is 50 MB."}), 413
 
 
 @app.route("/")
