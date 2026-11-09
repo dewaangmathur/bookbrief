@@ -2148,21 +2148,30 @@ function generateBeautifulPdf(data){
   drawRule(32, COL_GOLD);
 
   // We'll store ToC link annotations later; for now just lay out the rows
-  // and collect their Y positions so we can add link targets.
-  const tocEntries = []; // { chapterIdx, x, y, w, h }
-  let tocY = 44;
+  // and collect their Y positions AND which PDF page they're on.
+  const tocEntries = []; // { chapterIdx, pdfPage, x, y, w, h }
+  let tocY        = 44;
+  let tocCurPage  = tocPageNum; // track which PDF page we're currently on
 
   const hasParts = data.chapters.some(c => c.part);
   let lastPart   = undefined;
   let chIdx      = 0;
 
   for(const ch of data.chapters){
-    // Page break safety inside ToC (unlikely but guard anyway)
+    // Page break safety inside ToC
     if(tocY > H - 24){
       stampFooter('Table of Contents');
       addPage();
       fillRect(0, 0, W, H, COL_PAPER);
-      tocY = 24;
+      // continuation header
+      fillRect(0, 0, W, 20, COL_PAPER2);
+      setFont('helvetica', 'normal', 7.5, COL_GOLD);
+      doc.text('B O O K B R I E F', ML, 10);
+      setFont('helvetica', 'bold', 11, COL_INK);
+      doc.text('Table of Contents (continued)', ML, 17);
+      drawRule(20, COL_GOLD);
+      tocY       = 28;
+      tocCurPage = pageNum; // update which page we're on
     }
 
     // Part label
@@ -2210,8 +2219,8 @@ function generateBeautifulPdf(data){
     setFont('helvetica', 'bold', 9, COL_MUTED);
     doc.text('--', W - MR, tocY, { align:'right' });
 
-    // store bounding rect for the clickable link
-    tocEntries.push({ chapterIdx: chIdx, x: ML - 2, y: tocY - 5.5, w: TW + 4, h: rowH });
+    // store bounding rect + which PDF page this row is on
+    tocEntries.push({ chapterIdx: chIdx, pdfPage: tocCurPage, x: ML - 2, y: tocY - 5.5, w: TW + 4, h: rowH });
 
     tocY += rowH + 1;
     chIdx++;
@@ -2325,22 +2334,22 @@ function generateBeautifulPdf(data){
   }
 
   // ── Back-fill ToC: page numbers + clickable links ────────────────────────
-  doc.setPage(tocPageNum);
+  // Each entry knows which PDF page it's on (pdfPage) — set that page first
   for(const entry of tocEntries){
     const dest = chapterPageMap[entry.chapterIdx];
     if(dest == null) continue;
 
-    // Overwrite "--" with actual page number
-    // First blank out the old "--" text
-    fillRect(W - MR - 14, entry.y, 14, entry.h, COL_PAPER);  // erase area (alternating rows already applied)
-    // Also handle alternating fill
+    doc.setPage(entry.pdfPage);
+
+    // Erase the "--" placeholder and write the real page number
+    fillRect(W - MR - 14, entry.y, 14, entry.h, COL_PAPER);
     if(entry.chapterIdx % 2 === 0){
       fillRect(W - MR - 14, entry.y, 14, entry.h, [245, 240, 231]);
     }
     setFont('helvetica', 'bold', 9, COL_INK);
     doc.text(String(dest), W - MR, entry.y + entry.h - 2.5, { align:'right' });
 
-    // Clickable link over the entire row
+    // Clickable link over the entire row → jumps to chapter page
     doc.link(entry.x, entry.y, entry.w, entry.h, { pageNumber: dest });
   }
 
