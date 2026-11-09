@@ -1132,6 +1132,10 @@ async function uploadFile(file){
   if(!file || !file.name.toLowerCase().endsWith('.pdf')){
     showErr('Please upload a PDF file.'); return;
   }
+  if(file.size > 50 * 1024 * 1024){
+    showErr(`"${file.name}" is ${(file.size/1024/1024).toFixed(1)} MB — maximum allowed is 50 MB. Try a smaller PDF.`);
+    return;
+  }
   clearErr();
   uploadStatusMsg.textContent = `Uploading ${file.name}…`;
   uploadStatus.classList.add('active');
