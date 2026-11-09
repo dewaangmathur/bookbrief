@@ -337,6 +337,10 @@
   }
   .key-hint a{ color:var(--gold); }
 
+  /* ── Wait snake overlay ────────────────────────────────────────────── */
+  #waitSnakeBackdrop{ z-index:200; }
+  #waitSnakeBackdrop.open{ display:flex; }
+
   /* ── Drop zone ─────────────────────────────────────────────────────── */
   .drop-zone{
     border:2px dashed var(--rule);
@@ -353,7 +357,9 @@
     background:rgba(169,120,47,0.04);
   }
   .drop-zone input[type=file]{
-    position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+    position:absolute; inset:0; opacity:0; cursor:pointer;
+    width:100%; height:100%; z-index:2;
+    touch-action:manipulation;
   }
   .drop-icon{ font-size:36px; margin-bottom:10px; }
   .drop-title{
@@ -728,6 +734,20 @@
 </head>
 <body>
 
+<!-- ── Wait snake overlay (shown during chapter detect + summarize) ─── -->
+<div class="modal-backdrop" id="waitSnakeBackdrop" style="pointer-events:none;">
+  <div class="modal" style="max-width:340px; text-align:center; pointer-events:all;">
+    <div class="wake-eyebrow" style="margin-bottom:6px;">Working…</div>
+    <div id="waitSnakeMsg" style="font-family:'Source Serif 4',serif; font-size:14px; color:var(--muted); font-style:italic; margin-bottom:16px; min-height:36px;"></div>
+    <div class="snake-wrap">
+      <div class="snake-label">🐍 Kill time — play Snake</div>
+      <canvas id="waitSnakeCanvas" width="260" height="260"></canvas>
+      <div class="snake-score">Score: <span id="waitSnakeScore">0</span></div>
+      <div class="snake-hint">Arrow keys / WASD / swipe</div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Wake screen (shown while Render cold-starts) ──────────────────── -->
 <div id="wakeScreen">
   <div class="wake-eyebrow">BookBrief</div>
@@ -975,6 +995,8 @@
 const API = '';
 let currentFilename = null;
 let lastResultData = null;
+let currentChapters = null;       // full chapter list from last preview (with start/end pages)
+let currentDetectionMethod = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const tocPanel         = document.getElementById('tocPanel');
@@ -1109,21 +1131,15 @@ function renderRecentBooks(){
 }
 renderRecentBooks();
 
-// fetch server book list silently to sync recent list
+// fetch server book list silently — keep only books that exist on server
 async function syncServerBooks(){
   try{
     const res  = await fetch(`${API}/api/books`);
     const data = await res.json();
-    // add any server-side books not in recent list
-    const recent = getRecentBooks();
-    let changed = false;
-    for(const b of (data.books || [])){
-      if(!recent.includes(b)){ recent.push(b); changed = true; }
-    }
-    if(changed){
-      localStorage.setItem('recent_books', JSON.stringify(recent.slice(0,8)));
-      renderRecentBooks();
-    }
+    const serverBooks = new Set(data.books || []);
+    const recent = getRecentBooks().filter(b => serverBooks.has(b));
+    localStorage.setItem('recent_books', JSON.stringify(recent));
+    renderRecentBooks();
   }catch{}
 }
 syncServerBooks();
@@ -1180,6 +1196,8 @@ async function loadToc(filename){
   tocPanel.style.display = 'block';
   tocMeta.textContent = 'Detecting chapters…';
   tocBody.innerHTML = '';
+  summarizeBtn.disabled = true;
+  showWaitSnake('Detecting chapters — LLM is reading your book\'s table of contents…');
   try{
     const res  = await fetch(`${API}/api/preview-chapters`, {
       method:'POST',
@@ -1188,6 +1206,9 @@ async function loadToc(filename){
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Failed to detect chapters');
+    // cache for summarize — avoids re-running chapter detection
+    currentChapters = data.chapters;
+    currentDetectionMethod = data.detection_method;
     const maxPages = Math.max(...data.chapters.map(c => c.pages));
     tocMeta.textContent = `${data.total_pages} pages · ${data.chapters.length} chapters detected (method: ${data.detection_method})`;
 
@@ -1208,7 +1229,14 @@ async function loadToc(filename){
         </tr>`;
     }
     tocBody.innerHTML = rows;
-  }catch(e){ showErr(e.message); tocMeta.textContent=''; }
+    summarizeBtn.disabled = false;
+  }catch(e){
+    showErr(e.message);
+    tocMeta.textContent='';
+    summarizeBtn.disabled = false;
+  } finally {
+    hideWaitSnake();
+  }
 }
 
 summarizeBtn.addEventListener('click', async () => {
@@ -1218,6 +1246,7 @@ summarizeBtn.addEventListener('click', async () => {
   summarizeStatus.classList.add('active');
   summarizeBtn.disabled = true;
   resultsPanel.style.display = 'none';
+  showWaitSnake('Summarizing your book — this takes a few minutes for large books…');
   try{
     const res = await fetch(`${API}/api/summarize`, {
       method:'POST',
@@ -1230,16 +1259,24 @@ summarizeBtn.addEventListener('click', async () => {
         words_per_page: parseInt(wppSlider.value),
         max_words: parseInt(maxWordsSlider.value),
         model: activeModel.id,
+        chapters: currentChapters,            // skip re-detection on backend
+        detection_method: currentDetectionMethod,
       })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Summarization failed');
     lastResultData = data;
     renderResults(data);
-  }catch(e){ showErr(e.message); }
+  }catch(e){
+    const msg = e.message === 'Failed to fetch'
+      ? 'Connection lost — the server may have timed out on a large book. Try a smaller PDF or fewer chapters, then retry.'
+      : e.message;
+    showErr(msg);
+  }
   finally{
     summarizeStatus.classList.remove('active');
     summarizeBtn.disabled = false;
+    hideWaitSnake();
   }
 });
 
@@ -1360,6 +1397,101 @@ function closeInfoModal(){
 function handleInfoBackdrop(e){
   if(e.target === document.getElementById('infoBackdrop')) closeInfoModal();
 }
+
+// ── Wait snake (inline overlay during chapter detect + summarize) ─────────
+(function(){
+  const backdrop  = document.getElementById('waitSnakeBackdrop');
+  const msgEl     = document.getElementById('waitSnakeMsg');
+  const canvas    = document.getElementById('waitSnakeCanvas');
+  const scoreEl   = document.getElementById('waitSnakeScore');
+  const ctx       = canvas.getContext('2d');
+
+  const GRID = 18, CELL = canvas.width / GRID, TICK = 130;
+  const C_BG   = '#fbf8f1', C_GRID = '#ece3d1';
+  const C_SNAKE = '#a9782f', C_HEAD = '#1c1b19', C_FOOD = '#4a5d43';
+
+  let snake, dir, nextDir, food, score, loop, alive;
+
+  function rand(){ return { x: Math.floor(Math.random()*GRID), y: Math.floor(Math.random()*GRID) }; }
+  function placeFood(){ let f; do { f=rand(); } while(snake.some(s=>s.x===f.x&&s.y===f.y)); return f; }
+
+  function initSnake(){
+    const m = Math.floor(GRID/2);
+    snake=[{x:m,y:m},{x:m-1,y:m},{x:m-2,y:m}];
+    dir=nextDir={x:1,y:0}; food=placeFood(); score=0; alive=true;
+    scoreEl.textContent='0'; draw();
+  }
+
+  function step(){
+    if(!alive) return;
+    dir = nextDir;
+    const h={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+    if(h.x<0||h.x>=GRID||h.y<0||h.y>=GRID||snake.some(s=>s.x===h.x&&s.y===h.y)){
+      alive=false; setTimeout(initSnake,900); return;
+    }
+    snake.unshift(h);
+    if(h.x===food.x&&h.y===food.y){ score++; scoreEl.textContent=score; food=placeFood(); }
+    else snake.pop();
+    draw();
+  }
+
+  function rr(ctx,x,y,w,h,r){
+    ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r);
+    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+    ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r);
+    ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+  }
+
+  function draw(){
+    ctx.fillStyle=C_BG; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle=C_GRID; ctx.lineWidth=0.4;
+    for(let i=0;i<=GRID;i++){
+      ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(canvas.width,i*CELL); ctx.stroke();
+    }
+    // food
+    ctx.fillStyle=C_FOOD; rr(ctx,food.x*CELL+2,food.y*CELL+2,CELL-4,CELL-4,3); ctx.fill();
+    ctx.font=`${CELL-4}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('📖',food.x*CELL+CELL/2,food.y*CELL+CELL/2+1);
+    // snake
+    snake.forEach((s,i)=>{
+      ctx.fillStyle=i===0?C_HEAD:C_SNAKE;
+      const p=i===0?1:2; rr(ctx,s.x*CELL+p,s.y*CELL+p,CELL-p*2,CELL-p*2,i===0?4:3); ctx.fill();
+    });
+  }
+
+  const KEYS={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},
+              w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0}};
+  document.addEventListener('keydown',e=>{
+    if(!backdrop.classList.contains('open')) return;
+    const d=KEYS[e.key]; if(!d) return;
+    if(d.x===-dir.x&&d.y===-dir.y) return;
+    nextDir=d;
+    if(e.key.startsWith('Arrow')) e.preventDefault();
+  });
+
+  let ts=null;
+  canvas.addEventListener('touchstart',e=>{ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+  canvas.addEventListener('touchend',e=>{
+    if(!ts) return;
+    const dx=e.changedTouches[0].clientX-ts.x, dy=e.changedTouches[0].clientY-ts.y;
+    if(Math.abs(dx)>Math.abs(dy)){ const d=dx>0?{x:1,y:0}:{x:-1,y:0}; if(d.x!==-dir.x) nextDir=d; }
+    else { const d=dy>0?{x:0,y:1}:{x:0,y:-1}; if(d.y!==-dir.y) nextDir=d; }
+    ts=null;
+  },{passive:true});
+
+  window.showWaitSnake = function(msg){
+    msgEl.textContent = msg || 'Working…';
+    backdrop.classList.add('open');
+    initSnake();
+    loop = setInterval(step, TICK);
+  };
+  window.hideWaitSnake = function(){
+    backdrop.classList.remove('open');
+    clearInterval(loop);
+  };
+})();
 
 // ── Model picker ──────────────────────────────────────────────────────────
 const MODELS = [
@@ -1917,12 +2049,11 @@ function generateBeautifulPdf(data){
 
   // Running footer on current page
   function stampFooter(label){
-    const fy = H - 10;
-    setFont('helvetica', 'normal', 7.5, COL_MUTED);
-    doc.text('BookBrief', ML, fy);
-    doc.text(label || '', W/2, fy, { align:'center' });
+    const fy = H - 9;
+    drawRule(fy - 3, COL_RULE);
+    setFont('helvetica', 'normal', 7, COL_MUTED);
+    if(label) doc.text(label, ML, fy);
     doc.text(String(pageNum), W - MR, fy, { align:'right' });
-    drawRule(fy - 2.5, COL_RULE);
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -2099,45 +2230,40 @@ function generateBeautifulPdf(data){
     fillRect(0, 0, W, H, COL_PAPER);
 
     // ── Chapter header band ──────────────────────────────────────────────
-    const bandH = 46;
-    fillRect(0, 0, W, bandH, COL_PAPER2);
+    // Minimal clean band: thin gold top rule, chapter number, title, part
+    const bandH = 38;
+    fillRect(0, 0, W, 2, COL_GOLD);  // thin gold top accent only
 
-    // back-link to ToC (top-left pill)
-    setFont('helvetica', 'normal', 7.5, COL_MUTED);
+    // back-link (subtle, top-left)
+    setFont('helvetica', 'normal', 7, COL_MUTED);
     doc.text('← Contents', ML, 10);
-    doc.link(ML, 5, 25, 7, { pageNumber: tocPageNum });
+    doc.link(ML, 5, 22, 6, { pageNumber: tocPageNum });
 
-    // part label
+    // chapter number (top-right, gold)
+    setFont('helvetica', 'bold', 8, COL_GOLD);
+    doc.text(`${String(ci+1).padStart(2,'0')}`, W - MR, 10, { align:'right' });
+
+    // part label (centered, small)
     if(ch.part){
-      setFont('helvetica', 'normal', 7.5, COL_GOLD);
+      setFont('helvetica', 'normal', 7, COL_GOLD);
       doc.text(ch.part.toUpperCase(), W/2, 10, { align:'center' });
     }
 
-    // chapter number badge
-    setFont('helvetica', 'bold', 11, COL_GOLD);
-    doc.text(`CH ${String(ci+1).padStart(2,'0')}`, W - MR, 12, { align:'right' });
-
-    // chapter title
-    setFont('helvetica', 'bold', 15, COL_INK);
+    // chapter title (large, bold)
+    setFont('helvetica', 'bold', 14, COL_INK);
     const hLines = doc.splitTextToSize(ch.title || '', TW);
-    let hy = 24;
-    hLines.forEach(line => { doc.text(line, ML, hy); hy += 7.5; });
+    let hy = 20;
+    hLines.forEach(line => { doc.text(line, ML, hy); hy += 7; });
 
-    // meta row
-    const metaY = bandH - 5;
-    setFont('helvetica', 'normal', 7.5, COL_MUTED);
-    const metaParts = [
-      `${ch.pages} pages`,
-      `${ch.input_tokens.toLocaleString()} in · ${ch.output_tokens.toLocaleString()} out tok`,
-      `${ch.time_seconds}s`,
-      `$${ch.cost_usd.toFixed(4)}`,
-    ];
-    doc.text(metaParts.join('   ·   '), ML, metaY);
+    // meta row — clean, only pages and cost (no raw tokens)
+    const metaY = bandH - 4;
+    setFont('helvetica', 'normal', 7, COL_MUTED);
+    doc.text(`${ch.pages} pages  ·  ${ch.time_seconds}s  ·  $${ch.cost_usd.toFixed(4)}`, ML, metaY);
 
-    drawRule(bandH + 1, COL_GOLD);
+    drawRule(bandH, COL_RULE);  // subtle rule, not gold
 
     // ── Summary body ─────────────────────────────────────────────────────
-    let cy = bandH + 11;
+    let cy = bandH + 10;
     const bodyMaxW = TW;
     const lineH    = 5.6;
     setFont('helvetica', 'normal', 10, COL_INK);
