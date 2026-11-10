@@ -271,30 +271,29 @@
     transition:width .4s ease;
   }
 
-  /* snake game */
+  /* zero-kaata (tic-tac-toe) game */
   .snake-wrap{
-    display:flex; flex-direction:column; align-items:center; gap:10px;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
   }
   .snake-label{
     font-family:'JetBrains Mono', monospace;
-    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    font-size:11px; letter-spacing:.06em;
     color:var(--muted);
   }
-  #snakeCanvas{
+  .ttt-cell{
+    width:68px; height:68px;
+    background:var(--paper-2);
     border:2px solid var(--rule);
-    border-radius:4px;
-    background:var(--card);
-    display:block;
-    image-rendering:pixelated;
+    border-radius:6px;
+    font-size:30px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition:background .1s, border-color .1s;
+    user-select:none;
   }
-  .snake-score{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px; color:var(--gold);
-  }
-  .snake-hint{
-    font-family:'JetBrains Mono', monospace;
-    font-size:10.5px; color:var(--muted); text-align:center;
-  }
+  .ttt-cell:hover:not(.taken){ background:rgba(169,120,47,0.08); border-color:var(--gold); }
+  .ttt-cell.taken{ cursor:default; }
+  .ttt-cell.win{ background:rgba(74,93,67,0.15); border-color:var(--green); }
 
   /* ── Wake screen ───────────────────────────────────────────────────── */
 
@@ -338,8 +337,8 @@
   .key-hint a{ color:var(--gold); }
 
   /* ── Wait snake overlay ────────────────────────────────────────────── */
-  #waitSnakeBackdrop{ z-index:200; }
-  #waitSnakeBackdrop.open{ display:flex; }
+  #waitTTTBackdrop{ z-index:200; }
+  #waitTTTBackdrop.open{ display:flex; }
 
   /* ── Drop zone ─────────────────────────────────────────────────────── */
   .drop-zone{
@@ -734,16 +733,16 @@
 </head>
 <body>
 
-<!-- ── Wait snake overlay (shown during chapter detect + summarize) ─── -->
-<div class="modal-backdrop" id="waitSnakeBackdrop" style="pointer-events:none;">
-  <div class="modal" style="max-width:340px; text-align:center; pointer-events:all;">
+<!-- ── Wait TTT overlay (shown during chapter detect + summarize) ────── -->
+<div class="modal-backdrop" id="waitTTTBackdrop" style="pointer-events:none;">
+  <div class="modal" style="max-width:320px; text-align:center; pointer-events:all;">
     <div class="wake-eyebrow" style="margin-bottom:6px;">Working…</div>
-    <div id="waitSnakeMsg" style="font-family:'Source Serif 4',serif; font-size:14px; color:var(--muted); font-style:italic; margin-bottom:16px; min-height:36px;"></div>
-    <div class="snake-wrap">
-      <div class="snake-label">🐍 Kill time — play Snake</div>
-      <canvas id="waitSnakeCanvas" width="260" height="260"></canvas>
-      <div class="snake-score">Score: <span id="waitSnakeScore">0</span></div>
-      <div class="snake-hint">Arrow keys / WASD / swipe</div>
+    <div id="waitTTTMsg" style="font-family:'Source Serif 4',serif; font-size:14px; color:var(--muted); font-style:italic; margin-bottom:14px; min-height:36px;"></div>
+    <div class="snake-label">❌⭕ Zero-Kaata — beat the computer!</div>
+    <div id="tttBoard" style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:14px auto; width:216px;"></div>
+    <div id="tttStatus" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold); min-height:18px; margin-bottom:8px;"></div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);">
+      Score — You: <span id="tttWins">0</span> · Computer: <span id="tttLosses">0</span> · Draw: <span id="tttDraws">0</span>
     </div>
   </div>
 </div>
@@ -760,10 +759,12 @@
   <div class="wake-bar-wrap"><div class="wake-bar-fill" id="wakeBar"></div></div>
 
   <div class="snake-wrap">
-    <div class="snake-label">🐍 Kill time — play Snake</div>
-    <canvas id="snakeCanvas" width="280" height="280"></canvas>
-    <div class="snake-score">Score: <span id="snakeScore">0</span> &nbsp;|&nbsp; Best: <span id="snakeBest">0</span></div>
-    <div class="snake-hint">Arrow keys or WASD to move · auto-starts in 1s</div>
+    <div class="snake-label">❌⭕ Zero-Kaata — beat the computer!</div>
+    <div id="wakeBoard" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px auto; width:228px;"></div>
+    <div id="wakeStatus" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold); min-height:18px;"></div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-top:4px;">
+      Score — You: <span id="wakeWins">0</span> · Computer: <span id="wakeLosses">0</span> · Draw: <span id="wakeDraws">0</span>
+    </div>
   </div>
 </div>
 
@@ -953,7 +954,7 @@
 
     <div class="info-warn">
       ⏱ <b>Why does it take so long to load sometimes?</b><br>
-      The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that's what the Snake game is for while you wait!
+      The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that's what the Zero-Kaata game is for while you wait!
       <br><br>
       📄 <b>Text-based PDFs only.</b> BookBrief works with books that have real selectable text — like ebooks or publisher PDFs. Scanned books (photos of pages) won't work. Not sure? If you can select and copy text in your PDF, you're good to go!
     </div>
@@ -1398,99 +1399,147 @@ function handleInfoBackdrop(e){
   if(e.target === document.getElementById('infoBackdrop')) closeInfoModal();
 }
 
-// ── Wait snake (inline overlay during chapter detect + summarize) ─────────
+// ── Zero-Kaata (Tic-Tac-Toe) — shared engine for both overlays ───────────
 (function(){
-  const backdrop  = document.getElementById('waitSnakeBackdrop');
-  const msgEl     = document.getElementById('waitSnakeMsg');
-  const canvas    = document.getElementById('waitSnakeCanvas');
-  const scoreEl   = document.getElementById('waitSnakeScore');
-  const ctx       = canvas.getContext('2d');
 
-  const GRID = 18, CELL = canvas.width / GRID, TICK = 130;
-  const C_BG   = '#fbf8f1', C_GRID = '#ece3d1';
-  const C_SNAKE = '#a9782f', C_HEAD = '#1c1b19', C_FOOD = '#4a5d43';
+  const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
-  let snake, dir, nextDir, food, score, loop, alive;
-
-  function rand(){ return { x: Math.floor(Math.random()*GRID), y: Math.floor(Math.random()*GRID) }; }
-  function placeFood(){ let f; do { f=rand(); } while(snake.some(s=>s.x===f.x&&s.y===f.y)); return f; }
-
-  function initSnake(){
-    const m = Math.floor(GRID/2);
-    snake=[{x:m,y:m},{x:m-1,y:m},{x:m-2,y:m}];
-    dir=nextDir={x:1,y:0}; food=placeFood(); score=0; alive=true;
-    scoreEl.textContent='0'; draw();
+  function checkWinner(b){
+    for(const [a,c,d] of WINS)
+      if(b[a] && b[a]===b[c] && b[a]===b[d]) return b[a];
+    return b.includes(null) ? null : 'draw';
   }
 
-  function step(){
-    if(!alive) return;
-    dir = nextDir;
-    const h={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
-    if(h.x<0||h.x>=GRID||h.y<0||h.y>=GRID||snake.some(s=>s.x===h.x&&s.y===h.y)){
-      alive=false; setTimeout(initSnake,900); return;
+  function minimax(b, isMax){
+    const w = checkWinner(b);
+    if(w==='O') return 10;
+    if(w==='X') return -10;
+    if(w==='draw') return 0;
+    let best = isMax ? -Infinity : Infinity;
+    for(let i=0;i<9;i++){
+      if(!b[i]){
+        b[i] = isMax ? 'O' : 'X';
+        const v = minimax(b, !isMax);
+        b[i] = null;
+        best = isMax ? Math.max(best,v) : Math.min(best,v);
+      }
     }
-    snake.unshift(h);
-    if(h.x===food.x&&h.y===food.y){ score++; scoreEl.textContent=score; food=placeFood(); }
-    else snake.pop();
-    draw();
+    return best;
   }
 
-  function rr(ctx,x,y,w,h,r){
-    ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
-    ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r);
-    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
-    ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r);
-    ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
-  }
-
-  function draw(){
-    ctx.fillStyle=C_BG; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.strokeStyle=C_GRID; ctx.lineWidth=0.4;
-    for(let i=0;i<=GRID;i++){
-      ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,canvas.height); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(canvas.width,i*CELL); ctx.stroke();
+  function bestMove(b){
+    const empty = b.map((v,i)=>v===null?i:-1).filter(i=>i>=0);
+    // always take win
+    for(const i of empty){ b[i]='O'; if(checkWinner(b)==='O'){b[i]=null;return i;} b[i]=null; }
+    // always block loss
+    for(const i of empty){ b[i]='X'; if(checkWinner(b)==='X'){b[i]=null;return i;} b[i]=null; }
+    // 30% random to make it beatable
+    if(Math.random()<0.30) return empty[Math.floor(Math.random()*empty.length)];
+    // minimax
+    let best=-Infinity, move=empty[0];
+    for(const i of empty){
+      b[i]='O';
+      const v=minimax(b,false);
+      b[i]=null;
+      if(v>best){best=v;move=i;}
     }
-    // food
-    ctx.fillStyle=C_FOOD; rr(ctx,food.x*CELL+2,food.y*CELL+2,CELL-4,CELL-4,3); ctx.fill();
-    ctx.font=`${CELL-4}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('📖',food.x*CELL+CELL/2,food.y*CELL+CELL/2+1);
-    // snake
-    snake.forEach((s,i)=>{
-      ctx.fillStyle=i===0?C_HEAD:C_SNAKE;
-      const p=i===0?1:2; rr(ctx,s.x*CELL+p,s.y*CELL+p,CELL-p*2,CELL-p*2,i===0?4:3); ctx.fill();
-    });
+    return move;
   }
 
-  const KEYS={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},
-              w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0}};
-  document.addEventListener('keydown',e=>{
-    if(!backdrop.classList.contains('open')) return;
-    const d=KEYS[e.key]; if(!d) return;
-    if(d.x===-dir.x&&d.y===-dir.y) return;
-    nextDir=d;
-    if(e.key.startsWith('Arrow')) e.preventDefault();
-  });
+  function getWinLine(b){
+    for(const line of WINS){
+      const [a,c,d]=line;
+      if(b[a]&&b[a]===b[c]&&b[a]===b[d]) return line;
+    }
+    return null;
+  }
 
-  let ts=null;
-  canvas.addEventListener('touchstart',e=>{ts={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
-  canvas.addEventListener('touchend',e=>{
-    if(!ts) return;
-    const dx=e.changedTouches[0].clientX-ts.x, dy=e.changedTouches[0].clientY-ts.y;
-    if(Math.abs(dx)>Math.abs(dy)){ const d=dx>0?{x:1,y:0}:{x:-1,y:0}; if(d.x!==-dir.x) nextDir=d; }
-    else { const d=dy>0?{x:0,y:1}:{x:0,y:-1}; if(d.y!==-dir.y) nextDir=d; }
-    ts=null;
-  },{passive:true});
+  // Factory: bind a TTT game to a set of DOM elements
+  function makeTTT(boardEl, statusEl, winsEl, lossesEl, drawsEl){
+    if(!boardEl) return { restart:()=>{} };
+    let board, gameOver, wins=0, losses=0, draws=0;
+
+    function setStatus(msg){ if(statusEl) statusEl.textContent=msg; }
+
+    function render(){
+      boardEl.innerHTML='';
+      const winLine = gameOver ? getWinLine(board) : null;
+      board.forEach((val,i)=>{
+        const cell=document.createElement('div');
+        cell.className='ttt-cell'+(val?' taken':'');
+        cell.textContent=val==='X'?'❌':val==='O'?'⭕':'';
+        if(winLine&&winLine.includes(i)) cell.classList.add('win');
+        if(!val&&!gameOver) cell.addEventListener('click',()=>humanMove(i));
+        boardEl.appendChild(cell);
+      });
+    }
+
+    function humanMove(i){
+      if(board[i]||gameOver) return;
+      board[i]='X';
+      const w=checkWinner(board);
+      if(w){endGame(w);return;}
+      setStatus('⏳ Computer thinking…');
+      render();
+      setTimeout(()=>{
+        const m=bestMove(board);
+        board[m]='O';
+        const w2=checkWinner(board);
+        if(w2){endGame(w2);return;}
+        setStatus('Your turn — tap a cell');
+        render();
+      },400);
+    }
+
+    function endGame(result){
+      gameOver=true;
+      if(result==='X'){wins++;setStatus('🎉 You win! Tap to play again');if(winsEl)winsEl.textContent=wins;}
+      else if(result==='O'){losses++;setStatus('💻 Computer wins! Tap to play again');if(lossesEl)lossesEl.textContent=losses;}
+      else{draws++;setStatus("🤝 Draw! Tap to play again");if(drawsEl)drawsEl.textContent=draws;}
+      render();
+      boardEl.addEventListener('click',restart,{once:true});
+    }
+
+    function restart(){
+      board=Array(9).fill(null);
+      gameOver=false;
+      setStatus('Your turn — tap a cell  (you are ❌)');
+      render();
+    }
+    return {restart};
+  }
+
+  // ── Wait overlay TTT ─────────────────────────────────────────────────────
+  const waitBackdrop = document.getElementById('waitTTTBackdrop');
+  const waitMsgEl    = document.getElementById('waitTTTMsg');
+  const waitTTT = makeTTT(
+    document.getElementById('tttBoard'),
+    document.getElementById('tttStatus'),
+    document.getElementById('tttWins'),
+    document.getElementById('tttLosses'),
+    document.getElementById('tttDraws')
+  );
 
   window.showWaitSnake = function(msg){
-    msgEl.textContent = msg || 'Working…';
-    backdrop.classList.add('open');
-    initSnake();
-    loop = setInterval(step, TICK);
+    if(waitMsgEl) waitMsgEl.textContent = msg||'Working…';
+    waitBackdrop.classList.add('open');
+    waitTTT.restart();
   };
   window.hideWaitSnake = function(){
-    backdrop.classList.remove('open');
-    clearInterval(loop);
+    waitBackdrop.classList.remove('open');
   };
+
+  // ── Wake screen TTT ──────────────────────────────────────────────────────
+  const wakeTTT = makeTTT(
+    document.getElementById('wakeBoard'),
+    document.getElementById('wakeStatus'),
+    document.getElementById('wakeWins'),
+    document.getElementById('wakeLosses'),
+    document.getElementById('wakeDraws')
+  );
+  window.stopSnake = function(){}; // called by dismiss(), no-op for TTT
+  setTimeout(()=>wakeTTT.restart(), 1000);
+
 })();
 
 // ── Model picker ──────────────────────────────────────────────────────────
@@ -1795,196 +1844,7 @@ function confirmSwitch(){
   // Start proper polling after 800ms (give fast check a head start)
   setTimeout(ping, 800);
 
-  // ── Snake game ───────────────────────────────────────────────────────
-  const canvas    = document.getElementById('snakeCanvas');
-  const ctx       = canvas.getContext('2d');
-  const scoreEl   = document.getElementById('snakeScore');
-  const bestEl    = document.getElementById('snakeBest');
-
-  const GRID = 20;        // cells
-  const CELL = canvas.width / GRID;  // px per cell = 14
-  const TICK = 120;       // ms per step
-
-  // BookBrief palette
-  const C_BG     = '#fbf8f1';
-  const C_GRID   = '#ece3d1';
-  const C_SNAKE  = '#a9782f';
-  const C_HEAD   = '#1c1b19';
-  const C_FOOD   = '#4a5d43';
-  const C_DEAD   = '#c0392b';
-  const C_TEXT   = '#6f6656';
-
-  let snake, dir, nextDir, food, score, best, gameLoop, alive;
-
-  best = 0;
-
-  function randCell(){
-    return { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
-  }
-
-  function placeFood(){
-    let f;
-    do { f = randCell(); }
-    while(snake.some(s => s.x === f.x && s.y === f.y));
-    return f;
-  }
-
-  function initGame(){
-    const mid = Math.floor(GRID / 2);
-    snake   = [{ x: mid, y: mid }, { x: mid - 1, y: mid }, { x: mid - 2, y: mid }];
-    dir     = { x: 1, y: 0 };
-    nextDir = { x: 1, y: 0 };
-    food    = placeFood();
-    score   = 0;
-    alive   = true;
-    scoreEl.textContent = '0';
-    draw();
-  }
-
-  function step(){
-    if(!alive) return;
-    dir = nextDir;
-    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
-
-    // wall collision
-    if(head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID){
-      die(); return;
-    }
-    // self collision
-    if(snake.some(s => s.x === head.x && s.y === head.y)){
-      die(); return;
-    }
-
-    snake.unshift(head);
-
-    if(head.x === food.x && head.y === food.y){
-      score++;
-      if(score > best) best = score;
-      scoreEl.textContent = score;
-      bestEl.textContent  = best;
-      food = placeFood();
-    } else {
-      snake.pop();
-    }
-
-    draw();
-  }
-
-  function die(){
-    alive = false;
-    drawDead();
-    setTimeout(initGame, 1200);
-  }
-
-  function draw(){
-    // background
-    ctx.fillStyle = C_BG;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // subtle grid
-    ctx.strokeStyle = C_GRID;
-    ctx.lineWidth = 0.5;
-    for(let i = 0; i <= GRID; i++){
-      ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, canvas.height); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(canvas.width, i * CELL); ctx.stroke();
-    }
-
-    // food — book emoji style: green square with rounded corners
-    ctx.fillStyle = C_FOOD;
-    roundRect(ctx, food.x * CELL + 2, food.y * CELL + 2, CELL - 4, CELL - 4, 3);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = `${CELL - 5}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('📖', food.x * CELL + CELL / 2, food.y * CELL + CELL / 2 + 1);
-
-    // snake body
-    snake.forEach((seg, i) => {
-      ctx.fillStyle = i === 0 ? C_HEAD : C_SNAKE;
-      const inset = i === 0 ? 1 : 2;
-      roundRect(ctx, seg.x * CELL + inset, seg.y * CELL + inset, CELL - inset*2, CELL - inset*2, i === 0 ? 4 : 3);
-      ctx.fill();
-    });
-  }
-
-  function drawDead(){
-    draw();
-    ctx.fillStyle = 'rgba(243,237,225,0.75)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = C_DEAD;
-    ctx.font = `bold ${CELL * 1.1}px 'JetBrains Mono', monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
-    ctx.fillStyle = C_TEXT;
-    ctx.font = `${CELL * 0.75}px 'JetBrains Mono', monospace`;
-    ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 14);
-  }
-
-  function roundRect(ctx, x, y, w, h, r){
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-
-  // controls
-  const KEY_MAP = {
-    ArrowUp:    { x: 0, y: -1 }, ArrowDown:  { x: 0, y: 1 },
-    ArrowLeft:  { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 },
-    w: { x: 0, y: -1 }, s: { x: 0, y: 1 },
-    a: { x: -1, y: 0 }, d: { x: 1, y: 0 },
-  };
-
-  document.addEventListener('keydown', e => {
-    if(dismissed) return;
-    const d = KEY_MAP[e.key];
-    if(!d) return;
-    // prevent reversing
-    if(d.x === -dir.x && d.y === -dir.y) return;
-    nextDir = d;
-    // prevent page scroll on arrow keys
-    if(e.key.startsWith('Arrow')) e.preventDefault();
-  });
-
-  // touch / swipe support
-  let touchStart = null;
-  canvas.addEventListener('touchstart', e => {
-    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, { passive: true });
-  canvas.addEventListener('touchend', e => {
-    if(!touchStart) return;
-    const dx = e.changedTouches[0].clientX - touchStart.x;
-    const dy = e.changedTouches[0].clientY - touchStart.y;
-    if(Math.abs(dx) > Math.abs(dy)){
-      const d = dx > 0 ? { x:1,y:0 } : { x:-1,y:0 };
-      if(!(d.x === -dir.x)) nextDir = d;
-    } else {
-      const d = dy > 0 ? { x:0,y:1 } : { x:0,y:-1 };
-      if(!(d.y === -dir.y)) nextDir = d;
-    }
-    touchStart = null;
-  }, { passive: true });
-
-  function startSnake(){
-    initGame();
-    gameLoop = setInterval(step, TICK);
-  }
-
-  function stopSnake(){
-    clearInterval(gameLoop);
-  }
-
-  // auto-start snake after 1s
-  setTimeout(startSnake, 1000);
+  // TTT for wake screen is handled by the shared engine above
 
 })();
 
