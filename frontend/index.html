@@ -1998,364 +1998,274 @@ function generateBeautifulPdf(data){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
 
-  // ── Palette & metrics ─────────────────────────────────────────────────
-  const W   = 210, H = 297;
-  const ML  = 20, MR = 20, MT = 24;        // margins
-  const TW  = W - ML - MR;                 // text width
-  const COL_GOLD   = [169, 120, 47];
-  const COL_INK    = [28, 27, 25];
-  const COL_PAPER  = [243, 237, 225];
-  const COL_PAPER2 = [236, 227, 209];
-  const COL_RULE   = [216, 203, 175];
-  const COL_MUTED  = [111, 102, 86];
-  const COL_WHITE  = [255, 255, 255];
-  const COL_CREAM  = [251, 248, 241];
+  // ── Palette — clean black on white, professor-friendly ───────────────
+  const W  = 210, H = 297;
+  const ML = 18,  MR = 18;
+  const TW = W - ML - MR;
 
-  // Track link destinations: chapterPageMap[i] = pdf page number for chapter i
-  const chapterPageMap = {};
-  let pageNum = 1;    // current PDF page (1-indexed, jsPDF pages start at 1)
+  const BLACK  = [0,   0,   0  ];
+  const DGREY  = [60,  60,  60 ];
+  const MGREY  = [120, 120, 120];
+  const LGREY  = [200, 200, 200];
+  const WHITE  = [255, 255, 255];
+  const RULE   = [220, 220, 220];
 
-  // ── Helpers ───────────────────────────────────────────────────────────
-  function setFont(name, style, size, colorRGB){
-    doc.setFont(name || 'helvetica', style || 'normal');
-    doc.setFontSize(size || 11);
-    doc.setTextColor(...(colorRGB || COL_INK));
-  }
-  function fillRect(x, y, w, h, colorRGB){
-    doc.setFillColor(...colorRGB);
-    doc.rect(x, y, w, h, 'F');
-  }
-  function drawRule(y, colorRGB, lx, rx){
-    doc.setDrawColor(...(colorRGB || COL_RULE));
-    doc.setLineWidth(0.3);
-    doc.line(lx ?? ML, y, rx ?? (W - MR), y);
-  }
+  // ── State ────────────────────────────────────────────────────────────
+  let pageNum = 1;
+  const chapterPageMap = {}; // ci → PDF page number where chapter starts
 
-  // Wrapped text that respects max width; returns new Y after printing
-  function writeText(text, x, y, maxW, lineH){
-    const lines = doc.splitTextToSize(text, maxW);
-    doc.text(lines, x, y);
-    return y + lines.length * lineH;
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function sf(style, size, col){
+    doc.setFont('helvetica', style || 'normal');
+    doc.setFontSize(size || 10);
+    doc.setTextColor(...(col || BLACK));
   }
-
-  // Add a new page and return updated pageNum
-  function addPage(){
+  function rule(y, col){
+    doc.setDrawColor(...(col || RULE));
+    doc.setLineWidth(0.25);
+    doc.line(ML, y, W - MR, y);
+  }
+  function newPage(){
     doc.addPage();
     pageNum++;
-    // subtle paper background
-    fillRect(0, 0, W, H, COL_PAPER);
-    return pageNum;
+    doc.setFillColor(...WHITE);
+    doc.rect(0, 0, W, H, 'F');
   }
-
-  // Running footer on current page
-  function stampFooter(label){
-    const fy = H - 9;
-    drawRule(fy - 3, COL_RULE);
-    setFont('helvetica', 'normal', 7, COL_MUTED);
-    if(label) doc.text(label, ML, fy);
+  function footer(leftTxt){
+    const fy = H - 8;
+    rule(fy - 2, RULE);
+    sf('normal', 7, MGREY);
+    if(leftTxt) doc.text(leftTxt, ML, fy);
     doc.text(String(pageNum), W - MR, fy, { align:'right' });
   }
 
-  // ════════════════════════════════════════════════════════════════════════
-  // PAGE 1 — Cover
-  // ════════════════════════════════════════════════════════════════════════
-  fillRect(0, 0, W, H, COL_PAPER);
-
-  // top gold band
-  fillRect(0, 0, W, 56, COL_GOLD);
-
-  // eyebrow
-  setFont('helvetica', 'bold', 8, COL_CREAM);
-  doc.text('B O O K B R I E F', W/2, 18, { align:'center' });
-
-  // white rule under eyebrow
-  doc.setDrawColor(...COL_CREAM); doc.setLineWidth(0.3);
-  doc.line(ML + 20, 22, W - MR - 20, 22);
-
-  // title on gold band
-  setFont('helvetica', 'bold', 20, [255, 255, 255]);
   const bookName = (data.filename || 'Book Summary').replace(/\.pdf$/i, '');
-  const titleLines = doc.splitTextToSize(bookName, TW - 10);
-  let ty = 38;
-  titleLines.forEach(line => {
-    doc.text(line, W/2, ty, { align:'center' });
-    ty += 9;
-  });
+  const now      = new Date();
+  const dateStr  = now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 
-  // subtitle
-  const coverY = 68;
-  setFont('helvetica', 'italic', 11, COL_MUTED);
-  doc.text('Chapter-by-Chapter Summary Report', W/2, coverY, { align:'center' });
+  // ════════════════════════════════════════════════════════════════════
+  // PAGE 1 — Cover (clean, minimal)
+  // ════════════════════════════════════════════════════════════════════
+  doc.setFillColor(...WHITE); doc.rect(0,0,W,H,'F');
 
-  // decorative horizontal rule
-  doc.setDrawColor(...COL_GOLD); doc.setLineWidth(0.6);
-  doc.line(ML + 30, coverY + 7, W - MR - 30, coverY + 7);
+  // thin black top bar
+  doc.setFillColor(...BLACK); doc.rect(0,0,W,8,'F');
+  sf('bold',7,WHITE); doc.text('BOOKBRIEF — CHAPTER SUMMARY REPORT', W/2, 5.5, {align:'center'});
 
-  // stats block
+  // Book title
+  sf('bold', 22, BLACK);
+  const tnl = doc.splitTextToSize(bookName, TW);
+  let ty = 50;
+  tnl.forEach(l => { doc.text(l, ML, ty); ty += 11; });
+
+  rule(ty + 4, RULE);
+
+  // stats table
   const s = data.stats;
-  const statsY = coverY + 22;
   const statItems = [
-    ['Total pages', `${data.total_pages}`],
-    ['Chapters', `${data.chapters.length}`],
-    ['Model', s.model || 'gpt-4o-mini'],
-    ['Total cost', `$${s.total_cost_usd.toFixed(4)}`],
-    ['Processing time', `${s.total_time_seconds}s`],
-    ['Detection', data.detection_method || '—'],
+    ['Chapters',   String(data.chapters.length)],
+    ['Total pages',String(data.total_pages)],
+    ['Model',      s.model || 'gpt-4o-mini'],
+    ['Total cost', '$' + s.total_cost_usd.toFixed(4)],
+    ['Time',       s.total_time_seconds + 's'],
+    ['Generated',  dateStr],
   ];
-
-  // stats card background
-  fillRect(ML, statsY - 6, TW, statItems.length * 9 + 12, COL_CREAM);
-  doc.setDrawColor(...COL_RULE); doc.setLineWidth(0.3);
-  doc.rect(ML, statsY - 6, TW, statItems.length * 9 + 12);
-
-  statItems.forEach(([label, value], i) => {
-    const sy = statsY + i * 9;
-    setFont('helvetica', 'bold', 8.5, COL_MUTED);
-    doc.text(label.toUpperCase(), ML + 8, sy);
-    setFont('helvetica', 'bold', 9, COL_INK);
-    doc.text(value, W - MR - 8, sy, { align:'right' });
-    if(i < statItems.length - 1){
-      doc.setDrawColor(...COL_RULE); doc.setLineWidth(0.15);
-      doc.line(ML + 8, sy + 2.5, W - MR - 8, sy + 2.5);
-    }
+  let sy = ty + 14;
+  statItems.forEach(([label, val]) => {
+    sf('bold', 8.5, MGREY); doc.text(label, ML, sy);
+    sf('bold', 8.5, BLACK); doc.text(val, W - MR, sy, {align:'right'});
+    sy += 8;
   });
 
-  // generated date
-  const genY = statsY + statItems.length * 9 + 20;
-  setFont('helvetica', 'normal', 8, COL_MUTED);
-  const now = new Date();
-  doc.text(`Generated ${now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`, W/2, genY, { align:'center' });
+  rule(sy + 2, RULE);
 
-  // bottom gold strip
-  fillRect(0, H - 16, W, 16, COL_GOLD);
-  setFont('helvetica', 'normal', 7, COL_CREAM);
-  doc.text('Powered by BookBrief · gpt-4o-mini · PyMuPDF', W/2, H - 6, { align:'center' });
+  // thin black bottom bar
+  doc.setFillColor(...BLACK); doc.rect(0, H-8, W, 8, 'F');
+  sf('normal',7,WHITE); doc.text('Generated by BookBrief', W/2, H-3.5, {align:'center'});
 
-  stampFooter('');
+  footer('');
 
-  // ════════════════════════════════════════════════════════════════════════
-  // PAGE 2 — Table of Contents (links added after chapters are laid out)
-  // ════════════════════════════════════════════════════════════════════════
-  addPage();
-  const tocPageNum = pageNum; // remember which PDF page holds the ToC
+  // ════════════════════════════════════════════════════════════════════
+  // TABLE OF CONTENTS
+  // Pages tracked per-entry so back-fill works across overflow pages
+  // ════════════════════════════════════════════════════════════════════
+  newPage();
+  const tocPageNum = pageNum;
 
-  // ToC header
-  fillRect(0, 0, W, 36, COL_PAPER2);
-  setFont('helvetica', 'normal', 7.5, COL_GOLD);
-  doc.text('B O O K B R I E F', ML, 12);
-  setFont('helvetica', 'bold', 18, COL_INK);
-  doc.text('Table of Contents', ML, 26);
-  drawRule(32, COL_GOLD);
+  sf('bold', 16, BLACK); doc.text('Contents', ML, 20);
+  rule(24, BLACK);
 
-  // We'll store ToC link annotations later; for now just lay out the rows
-  // and collect their Y positions AND which PDF page they're on.
-  const tocEntries = []; // { chapterIdx, pdfPage, x, y, w, h }
-  let tocY        = 44;
-  let tocCurPage  = tocPageNum; // track which PDF page we're currently on
+  const tocEntries = []; // {chapterIdx, pdfPage, x, y, w, h}
+  let tocY       = 32;
+  let tocCurPage = tocPageNum;
 
-  const hasParts = data.chapters.some(c => c.part);
-  let lastPart   = undefined;
-  let chIdx      = 0;
+  const hasParts  = data.chapters.some(c => c.part);
+  let lastPart    = undefined;
+  let chIdx       = 0;
 
   for(const ch of data.chapters){
-    // Page break safety inside ToC
-    if(tocY > H - 24){
-      stampFooter('Table of Contents');
-      addPage();
-      fillRect(0, 0, W, H, COL_PAPER);
-      // continuation header
-      fillRect(0, 0, W, 20, COL_PAPER2);
-      setFont('helvetica', 'normal', 7.5, COL_GOLD);
-      doc.text('B O O K B R I E F', ML, 10);
-      setFont('helvetica', 'bold', 11, COL_INK);
-      doc.text('Table of Contents (continued)', ML, 17);
-      drawRule(20, COL_GOLD);
-      tocY       = 28;
-      tocCurPage = pageNum; // update which page we're on
+    // overflow to next ToC page
+    if(tocY > H - 20){
+      footer('Contents');
+      newPage();
+      tocCurPage = pageNum;
+      sf('bold', 10, MGREY); doc.text('Contents (continued)', ML, 14);
+      rule(17, RULE);
+      tocY = 24;
     }
 
-    // Part label
+    // part heading
     if(hasParts && ch.part !== lastPart){
       lastPart = ch.part;
-      const partLabel = ch.part || 'Unsectioned';
-      setFont('helvetica', 'bold', 8, COL_GOLD);
-      doc.text(partLabel.toUpperCase(), ML, tocY);
-      tocY += 6;
-      drawRule(tocY, COL_RULE);
+      if(tocY > 32) tocY += 3;
+      sf('bold', 8, MGREY);
+      doc.text((ch.part || 'Other').toUpperCase(), ML, tocY);
       tocY += 5;
+      rule(tocY - 1, RULE);
+      tocY += 4;
     }
 
-    // Chapter row
-    const numLabel = String(chIdx + 1).padStart(2, '0');
-    const rowH     = 8;
+    const rowH = 7.5;
 
-    // subtle alternating fill
-    if(chIdx % 2 === 0){
-      fillRect(ML - 2, tocY - 5, TW + 4, rowH, [245, 240, 231]);
-    }
+    // number
+    sf('bold', 9, MGREY);
+    doc.text(String(chIdx + 1).padStart(2,'0'), ML, tocY);
 
-    // index number
-    setFont('helvetica', 'bold', 9, COL_GOLD);
-    doc.text(numLabel, ML, tocY);
-
-    // title (truncate if needed)
-    setFont('helvetica', 'normal', 9, COL_INK);
-    const maxTitleW = TW - 36;
-    const titleFull = ch.title || '';
-    const titleFits = doc.splitTextToSize(titleFull, maxTitleW)[0];
-    doc.text(titleFits + (titleFull.length > titleFits.length ? '…' : ''), ML + 12, tocY);
+    // title — truncate to fit
+    sf('normal', 9, BLACK);
+    const maxW   = TW - 28;
+    const full   = ch.title || '';
+    const fitted = doc.splitTextToSize(full, maxW)[0];
+    doc.text(fitted + (fitted.length < full.length ? '…' : ''), ML + 10, tocY);
 
     // dotted leader
-    setFont('helvetica', 'normal', 7, COL_RULE);
-    const titleActualW = doc.getTextWidth(titleFits) + 12;
-    const dotsStart    = ML + titleActualW + 2;
-    const dotsEnd      = W - MR - 20;
-    if(dotsEnd > dotsStart + 6){
+    sf('normal', 7, [180,180,180]);
+    const usedW     = doc.getTextWidth(fitted) + 10;
+    const dotsStart = ML + usedW + 2;
+    const dotsEnd   = W - MR - 16;
+    if(dotsEnd > dotsStart + 4){
       let dx = dotsStart;
-      while(dx < dotsEnd){ doc.text('.', dx, tocY); dx += 2.6; }
+      while(dx < dotsEnd){ doc.text('.', dx, tocY); dx += 2.5; }
     }
 
-    // page number placeholder ("--" for now; we'll overwrite after chapters)
-    setFont('helvetica', 'bold', 9, COL_MUTED);
-    doc.text('--', W - MR, tocY, { align:'right' });
+    // page placeholder
+    sf('normal', 9, MGREY);
+    doc.text('--', W - MR, tocY, {align:'right'});
 
-    // store bounding rect + which PDF page this row is on
-    tocEntries.push({ chapterIdx: chIdx, pdfPage: tocCurPage, x: ML - 2, y: tocY - 5.5, w: TW + 4, h: rowH });
+    // store for back-fill
+    tocEntries.push({ chapterIdx: chIdx, pdfPage: tocCurPage,
+                      x: ML, y: tocY - 6, w: TW, h: rowH });
 
-    tocY += rowH + 1;
+    tocY += rowH;
     chIdx++;
   }
+  footer('Contents');
 
-  stampFooter('Table of Contents');
-
-  // ════════════════════════════════════════════════════════════════════════
-  // CHAPTER PAGES
-  // ════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════
+  // CHAPTER PAGES — each chapter starts on a new page (required for
+  // reliable PDF internal links; jsPDF links by page number only)
+  // ════════════════════════════════════════════════════════════════════
   for(let ci = 0; ci < data.chapters.length; ci++){
-    const ch   = data.chapters[ci];
-    addPage();
-    chapterPageMap[ci] = pageNum; // record destination page
+    const ch = data.chapters[ci];
+    newPage();
+    chapterPageMap[ci] = pageNum; // ← this is what the ToC links to
 
-    fillRect(0, 0, W, H, COL_PAPER);
+    // ── Chapter header ──────────────────────────────────────────────
+    // thin top rule
+    rule(14, BLACK);
 
-    // ── Chapter header band ──────────────────────────────────────────────
-    // Minimal clean band: thin gold top rule, chapter number, title, part
-    const bandH = 38;
-    fillRect(0, 0, W, 2, COL_GOLD);  // thin gold top accent only
+    // back to contents (top-left)
+    sf('normal', 7, MGREY);
+    doc.text('↑ Contents', ML, 11);
+    doc.link(ML, 6, 22, 6, { pageNumber: tocPageNum });
 
-    // back-link (subtle, top-left)
-    setFont('helvetica', 'normal', 7, COL_MUTED);
-    doc.text('← Contents', ML, 10);
-    doc.link(ML, 5, 22, 6, { pageNumber: tocPageNum });
+    // chapter number (top-right)
+    sf('bold', 8, MGREY);
+    doc.text(`${String(ci+1).padStart(2,'0')} / ${data.chapters.length}`, W - MR, 11, {align:'right'});
 
-    // chapter number (top-right, gold)
-    setFont('helvetica', 'bold', 8, COL_GOLD);
-    doc.text(`${String(ci+1).padStart(2,'0')}`, W - MR, 10, { align:'right' });
-
-    // part label (centered, small)
+    // part label
     if(ch.part){
-      setFont('helvetica', 'normal', 7, COL_GOLD);
-      doc.text(ch.part.toUpperCase(), W/2, 10, { align:'center' });
+      sf('normal', 7, MGREY);
+      doc.text(ch.part, W/2, 11, {align:'center'});
     }
 
-    // chapter title (large, bold)
-    setFont('helvetica', 'bold', 14, COL_INK);
+    // chapter title
+    sf('bold', 13, BLACK);
     const hLines = doc.splitTextToSize(ch.title || '', TW);
-    let hy = 20;
-    hLines.forEach(line => { doc.text(line, ML, hy); hy += 7; });
+    let hy = 22;
+    hLines.forEach(l => { doc.text(l, ML, hy); hy += 6.5; });
 
-    // meta row — clean, only pages and cost (no raw tokens)
-    const metaY = bandH - 4;
-    setFont('helvetica', 'normal', 7, COL_MUTED);
-    doc.text(`${ch.pages} pages  ·  ${ch.time_seconds}s  ·  $${ch.cost_usd.toFixed(4)}`, ML, metaY);
+    // meta line
+    sf('normal', 7.5, MGREY);
+    doc.text(`${ch.pages} pages · $${ch.cost_usd.toFixed(4)}`, ML, hy + 1);
+    rule(hy + 5, RULE);
 
-    drawRule(bandH, COL_RULE);  // subtle rule, not gold
+    // ── Body text ───────────────────────────────────────────────────
+    let cy      = hy + 12;
+    const lineH = 5.4;
+    sf('normal', 10, BLACK);
 
-    // ── Summary body ─────────────────────────────────────────────────────
-    let cy = bandH + 10;
-    const bodyMaxW = TW;
-    const lineH    = 5.6;
-    setFont('helvetica', 'normal', 10, COL_INK);
-
-    const summary  = ch.summary || '(No summary)';
-    const paragraphs = summary.split(/\n\n+/);
-
-    for(const para of paragraphs){
+    for(const para of (ch.summary || '').split(/\n\n+/)){
       if(!para.trim()) continue;
-      const paraLines = doc.splitTextToSize(para.trim(), bodyMaxW);
+      const lines = doc.splitTextToSize(para.trim(), TW);
 
-      // page break if needed
-      if(cy + paraLines.length * lineH > H - 18){
-        stampFooter(ch.title);
-        addPage();
-        fillRect(0, 0, W, H, COL_PAPER);
-
-        // continuation header stripe
-        fillRect(0, 0, W, 16, COL_PAPER2);
-        setFont('helvetica', 'italic', 8, COL_MUTED);
-        doc.text(ch.title + ' (continued)', ML, 10);
-        setFont('helvetica', 'bold', 8, COL_GOLD);
-        doc.text(`CH ${String(ci+1).padStart(2,'0')}`, W - MR, 10, { align:'right' });
-        drawRule(14.5, COL_RULE);
-        cy = 24;
-        setFont('helvetica', 'normal', 10, COL_INK);
+      if(cy + lines.length * lineH > H - 16){
+        footer(ch.title.length > 50 ? ch.title.slice(0,47)+'…' : ch.title);
+        newPage();
+        // continuation marker
+        sf('italic', 7.5, MGREY);
+        doc.text(ch.title + ' (continued)', ML, 11);
+        rule(14, RULE);
+        cy = 20;
+        sf('normal', 10, BLACK);
       }
 
-      doc.text(paraLines, ML, cy);
-      cy += paraLines.length * lineH + 3; // extra breathing room between paragraphs
+      doc.text(lines, ML, cy);
+      cy += lines.length * lineH + 3;
     }
 
-    // ── Chapter nav footer ───────────────────────────────────────────────
-    stampFooter(bookName);
+    footer(bookName.length > 60 ? bookName.slice(0,57)+'…' : bookName);
 
-    // prev/next chapter navigation links at bottom
-    const navY = H - 13;
+    // prev / next nav (added after loop for next-page forward links)
     if(ci > 0){
-      setFont('helvetica', 'normal', 7.5, [169,120,47]);
-      doc.text('← Prev chapter', ML, navY);
-      doc.link(ML, navY - 4, 30, 6, { pageNumber: chapterPageMap[ci - 1] });
+      sf('normal', 7.5, MGREY);
+      doc.text('← Prev', ML, H - 11);
+      doc.link(ML, H - 15, 14, 5, { pageNumber: chapterPageMap[ci - 1] });
     }
     if(ci < data.chapters.length - 1){
-      setFont('helvetica', 'normal', 7.5, [169,120,47]);
-      doc.text('Next chapter →', W - MR, navY, { align:'right' });
-      // link target for next chapter will be set when that page is added;
-      // we store a forward reference and add the annotation after the loop.
+      sf('normal', 7.5, MGREY);
+      doc.text('Next →', W - MR, H - 11, {align:'right'});
+      // forward link added in back-fill below
     }
   }
 
-  // ── Back-fill prev/next forward links ───────────────────────────────────
-  // After the loop, all chapter pages exist. Now add the "Next chapter →"
-  // links (they needed the destination page number which only became known later).
+  // ── Back-fill: Next → forward links ─────────────────────────────────
   for(let ci = 0; ci < data.chapters.length - 1; ci++){
-    const srcPage  = chapterPageMap[ci];
-    const destPage = chapterPageMap[ci + 1];
-    doc.setPage(srcPage);
-    doc.link(W - MR - 30, H - 17, 30, 6, { pageNumber: destPage });
+    doc.setPage(chapterPageMap[ci]);
+    doc.link(W - MR - 14, H - 15, 14, 5, { pageNumber: chapterPageMap[ci + 1] });
   }
 
-  // ── Back-fill ToC: page numbers + clickable links ────────────────────────
-  // Each entry knows which PDF page it's on (pdfPage) — set that page first
+  // ── Back-fill: ToC page numbers + clickable links ────────────────────
+  // Uses per-entry pdfPage so multi-page ToCs are handled correctly
   for(const entry of tocEntries){
     const dest = chapterPageMap[entry.chapterIdx];
     if(dest == null) continue;
 
     doc.setPage(entry.pdfPage);
 
-    // Erase the "--" placeholder and write the real page number
-    fillRect(W - MR - 14, entry.y, 14, entry.h, COL_PAPER);
-    if(entry.chapterIdx % 2 === 0){
-      fillRect(W - MR - 14, entry.y, 14, entry.h, [245, 240, 231]);
-    }
-    setFont('helvetica', 'bold', 9, COL_INK);
-    doc.text(String(dest), W - MR, entry.y + entry.h - 2.5, { align:'right' });
+    // erase placeholder and write real page number
+    doc.setFillColor(...WHITE);
+    doc.rect(W - MR - 12, entry.y, 12, entry.h, 'F');
+    sf('normal', 9, BLACK);
+    doc.text(String(dest), W - MR, entry.y + entry.h - 1.5, {align:'right'});
 
-    // Clickable link over the entire row → jumps to chapter page
+    // clickable link across full row
     doc.link(entry.x, entry.y, entry.w, entry.h, { pageNumber: dest });
   }
 
-  // ── Save ─────────────────────────────────────────────────────────────────
-  const safeName = bookName.replace(/[^a-z0-9_\-\s]/gi, '_').trim() || 'bookbrief';
-  doc.save(`${safeName}_summary.pdf`);
+  // ── Save ─────────────────────────────────────────────────────────────
+  const safe = bookName.replace(/[^a-z0-9_\-\s]/gi,'_').trim() || 'bookbrief';
+  doc.save(`${safe}_summary.pdf`);
 }
 </script>
 </body>
