@@ -1197,7 +1197,7 @@
       <div class="stats-bar" id="statsBar"></div>
     </div>
     <div id="chapterList"></div>
-    <div class="panel" id="breakdownPanel">
+    <div class="panel" id="breakdownPanel" style="display:none;">
       <h2><span class="num">4</span> <span id="costBreakdownLabel">Cost &amp; token breakdown</span></h2>
       <table class="toc" id="breakdownTable">
         <thead>
@@ -1650,6 +1650,7 @@ function renderResults(data){
     <span>model <b>${s.model}</b></span>
   `;
 
+  document.getElementById('breakdownPanel').style.display = 'block';
   const breakdownBody = document.getElementById('breakdownBody');
   const breakdownFoot = document.getElementById('breakdownFoot');
   breakdownBody.innerHTML = data.chapters.map(c => `
