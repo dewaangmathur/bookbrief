@@ -159,7 +159,7 @@
     .drop-zone{ padding:32px 16px; }
     .drop-icon{ font-size:32px; }
     .key-bar{ flex-direction:column; align-items:stretch; }
-    .recent-chip{ max-width:100%; }
+    .recent-book-card{ min-width:90px; max-width:120px; padding:12px 10px; }
     button{ padding:10px 16px; font-size:11px; }
   }
   @media(max-width:420px){
@@ -636,20 +636,59 @@
   .recent-list{
     display:flex; flex-wrap:wrap; gap:8px;
   }
-  .recent-chip{
-    font-family:'JetBrains Mono', monospace; font-size:12px;
-    padding:7px 14px; border:1.5px solid var(--rule);
-    border-radius:20px; cursor:pointer; color:var(--ink);
-    background:var(--paper-2);
-    transition:all var(--transition);
-    max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  /* ── Recent book cards ─────────────────────────────────────────────── */
+  .recent-list{
+    display:flex; flex-wrap:wrap; gap:12px;
   }
-  .recent-chip:hover{
+  .recent-book-card{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; padding:16px 14px;
+    border:1.5px solid var(--rule);
+    border-radius:var(--radius);
+    background:var(--card);
+    cursor:pointer;
+    min-width:110px; max-width:150px;
+    text-align:center;
+    transition:all var(--transition);
+    animation:fadeSlideUp .4s var(--transition) both;
+    box-shadow:var(--shadow);
+    position:relative; overflow:hidden;
+  }
+  .recent-book-card::after{
+    content:'';
+    position:absolute; bottom:0; left:0; right:0;
+    height:2px;
+    background:linear-gradient(90deg, var(--gold), var(--gold-bright));
+    transform:scaleX(0);
+    transition:transform var(--transition);
+    transform-origin:left;
+  }
+  .recent-book-card:hover{
     border-color:var(--gold);
-    background:rgba(169,120,47,0.08);
-    transform:translateY(-1px);
-    box-shadow:0 3px 12px rgba(169,120,47,.15);
-    color:var(--gold);
+    background:rgba(169,120,47,0.05);
+    transform:translateY(-3px);
+    box-shadow:0 8px 24px rgba(169,120,47,.18);
+  }
+  .recent-book-card:hover::after{ transform:scaleX(1); }
+  .recent-book-icon{
+    font-size:28px;
+    animation:bookBounce 3s ease-in-out infinite;
+    display:block;
+  }
+  .recent-book-name{
+    font-family:'Fraunces', serif;
+    font-size:12px; font-weight:600;
+    color:var(--ink);
+    line-height:1.3;
+    word-break:break-word;
+    transition:color var(--transition);
+  }
+  .recent-book-card:hover .recent-book-name{ color:var(--gold); }
+  .recent-book-pages{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px; color:var(--muted);
+    background:var(--paper-2);
+    padding:2px 6px; border-radius:10px;
   }
   .recent-empty{
     font-family:'JetBrains Mono', monospace; font-size:11.5px;
@@ -1473,22 +1512,38 @@ function getRecentBooks(){
   try{ return JSON.parse(localStorage.getItem('recent_books') || '[]'); }
   catch{ return []; }
 }
-function addRecentBook(filename){
-  let books = getRecentBooks().filter(b => b !== filename);
-  books.unshift(filename);
-  books = books.slice(0, 8); // keep last 8
+function addRecentBook(filename, pages){
+  let books = getRecentBooks().filter(b => b.filename !== filename);
+  books.unshift({ filename, pages: pages || null });
+  books = books.slice(0, 8);
   localStorage.setItem('recent_books', JSON.stringify(books));
   renderRecentBooks();
 }
+function getRecentBooks(){
+  try{
+    const raw = JSON.parse(localStorage.getItem('recent_books') || '[]');
+    // handle legacy string format
+    return raw.map(b => typeof b === 'string' ? { filename: b, pages: null } : b);
+  } catch{ return []; }
+}
 function renderRecentBooks(){
   const books = getRecentBooks();
+  const de = currentLang === 'de';
   if(!books.length){
-    recentList.innerHTML = '<span class="recent-empty">No books yet — upload one above</span>';
+    recentList.innerHTML = `<span class="recent-empty">${de ? 'Noch kein Buch — oben hochladen' : 'No books yet — upload one above'}</span>`;
     return;
   }
-  recentList.innerHTML = books.map(b => `
-    <div class="recent-chip" title="${escapeHtml(b)}" onclick="loadToc('${escapeHtml(b)}')">${escapeHtml(b.replace(/\.pdf$/i,''))}</div>
+  recentList.innerHTML = books.map((b, i) => `
+    <div class="recent-book-card" onclick="recentCardClick('${escapeHtml(b.filename)}')" style="animation-delay:${i*0.07}s">
+      <div class="recent-book-icon">📖</div>
+      <div class="recent-book-name">${escapeHtml(b.filename.replace(/\.pdf$/i,''))}</div>
+      ${b.pages ? `<div class="recent-book-pages">${b.pages}p</div>` : ''}
+    </div>
   `).join('');
+}
+function recentCardClick(filename){
+  if(dropZoneLocked) return; // don't load a new book while processing
+  loadToc(filename);
 }
 renderRecentBooks();
 
@@ -1498,7 +1553,7 @@ async function syncServerBooks(){
     const res  = await fetch(`${API}/api/books`);
     const data = await res.json();
     const serverBooks = new Set(data.books || []);
-    const recent = getRecentBooks().filter(b => serverBooks.has(b));
+    const recent = getRecentBooks().filter(b => serverBooks.has(b.filename));
     localStorage.setItem('recent_books', JSON.stringify(recent));
     renderRecentBooks();
   }catch{}
@@ -1565,7 +1620,7 @@ async function uploadFile(file){
     const res  = await fetch(`${API}/api/upload`, { method:'POST', body: fd });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Upload failed');
-    addRecentBook(data.filename);
+    addRecentBook(data.filename, null); // pages unknown until TOC loads
     loadToc(data.filename);
   }catch(e){ showErr(e.message); }
   finally{
@@ -1619,6 +1674,7 @@ async function loadToc(filename){
     // cache for summarize — avoids re-running chapter detection
     currentChapters = data.chapters;
     currentDetectionMethod = data.detection_method;
+    addRecentBook(filename, data.total_pages); // update with real page count
     const maxPages = Math.max(...data.chapters.map(c => c.pages));
     tocMeta.textContent = `${data.total_pages} pages · ${data.chapters.length} chapters detected (method: ${data.detection_method})`;
 
@@ -1690,7 +1746,7 @@ summarizeBtn.addEventListener('click', async () => {
   finally{
     summarizeStatus.classList.remove('active');
     summarizeBtn.disabled = false;
-    unlockDropZone();
+    // drop zone stays locked — use Start Over button to upload a new book
     hideWaitSnake();
   }
 });
