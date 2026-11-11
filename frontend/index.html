@@ -2022,60 +2022,75 @@ function generateBeautifulPdf(data){
   footer('Contents');
 
   // ════════════════════════════════════════════════════════════════════
-  // CHAPTER PAGES — each chapter starts on a new page (required for
-  // reliable PDF internal links; jsPDF links by page number only)
   // ════════════════════════════════════════════════════════════════════
+  // CHAPTERS — flow continuously across pages, no forced new page per
+  // chapter. chapterPageMap[ci] records which page the heading lands on
+  // so ToC links still work perfectly.
+  // ════════════════════════════════════════════════════════════════════
+  newPage();
+  let cy      = 20;
+  const lineH = 5.4;
+  const FOOTER_Y       = H - 14;
+  const MIN_CH_SPACE   = 44; // min space needed before starting a chapter heading
+
   for(let ci = 0; ci < data.chapters.length; ci++){
     const ch = data.chapters[ci];
-    newPage();
-    chapterPageMap[ci] = pageNum; // ← this is what the ToC links to
 
-    // ── Chapter header ──────────────────────────────────────────────
-    // thin top rule
-    rule(14, BLACK);
+    // ── Spacing / page break between chapters ────────────────────────
+    if(ci > 0){
+      cy += 8;
+      if(cy + MIN_CH_SPACE > FOOTER_Y){
+        // not enough room — move to next page
+        footer(bookName.length > 60 ? bookName.slice(0,57)+'…' : bookName);
+        newPage();
+        cy = 20;
+      } else {
+        // draw a thin full-width divider
+        doc.setDrawColor(...BLACK);
+        doc.setLineWidth(0.4);
+        doc.line(ML, cy - 3, W - MR, cy - 3);
+        cy += 3;
+      }
+    }
 
-    // back to contents (top-left)
-    sf('normal', 7, MGREY);
-    doc.text('↑ Contents', ML, 11);
-    doc.link(ML, 6, 22, 6, { pageNumber: tocPageNum });
+    // ── Record destination page for ToC links ───────────────────────
+    chapterPageMap[ci] = pageNum;
 
-    // chapter number (top-right)
-    sf('bold', 8, MGREY);
-    doc.text(`${String(ci+1).padStart(2,'0')} / ${data.chapters.length}`, W - MR, 11, {align:'right'});
+    // ── Chapter heading ─────────────────────────────────────────────
+    // small chapter counter top-right
+    sf('normal', 7.5, MGREY);
+    doc.text(`${String(ci+1).padStart(2,'0')} / ${data.chapters.length}`, W - MR, cy, {align:'right'});
 
     // part label
     if(ch.part){
-      sf('normal', 7, MGREY);
-      doc.text(ch.part, W/2, 11, {align:'center'});
+      sf('normal', 7.5, MGREY);
+      doc.text(ch.part.toUpperCase(), ML, cy);
+      cy += 5.5;
     }
 
-    // chapter title
-    sf('bold', 13, BLACK);
-    const hLines = doc.splitTextToSize(ch.title || '', TW);
-    let hy = 22;
-    hLines.forEach(l => { doc.text(l, ML, hy); hy += 6.5; });
+    // title — big and bold
+    sf('bold', 16, BLACK);
+    const hLines = doc.splitTextToSize(ch.title || '', TW - 18);
+    hLines.forEach(l => { doc.text(l, ML, cy); cy += 8; });
 
     // meta line
     sf('normal', 7.5, MGREY);
-    doc.text(`${ch.pages} pages · $${ch.cost_usd.toFixed(4)}`, ML, hy + 1);
-    rule(hy + 5, RULE);
+    doc.text(`${ch.pages} pages · $${ch.cost_usd.toFixed(4)}`, ML, cy);
+    cy += 4;
+    doc.setDrawColor(...RULE); doc.setLineWidth(0.25);
+    doc.line(ML, cy, W - MR, cy);
+    cy += 7;
 
-    // ── Body text ───────────────────────────────────────────────────
-    let cy      = hy + 12;
-    const lineH = 5.4;
+    // ── Body paragraphs ─────────────────────────────────────────────
     sf('normal', 10, BLACK);
 
     for(const para of (ch.summary || '').split(/\n\n+/)){
       if(!para.trim()) continue;
       const lines = doc.splitTextToSize(para.trim(), TW);
 
-      if(cy + lines.length * lineH > H - 16){
-        footer(ch.title.length > 50 ? ch.title.slice(0,47)+'…' : ch.title);
+      if(cy + lines.length * lineH > FOOTER_Y){
+        footer(bookName.length > 60 ? bookName.slice(0,57)+'…' : bookName);
         newPage();
-        // continuation marker
-        sf('italic', 7.5, MGREY);
-        doc.text(ch.title + ' (continued)', ML, 11);
-        rule(14, RULE);
         cy = 20;
         sf('normal', 10, BLACK);
       }
@@ -2083,27 +2098,10 @@ function generateBeautifulPdf(data){
       doc.text(lines, ML, cy);
       cy += lines.length * lineH + 3;
     }
-
-    footer(bookName.length > 60 ? bookName.slice(0,57)+'…' : bookName);
-
-    // prev / next nav (added after loop for next-page forward links)
-    if(ci > 0){
-      sf('normal', 7.5, MGREY);
-      doc.text('← Prev', ML, H - 11);
-      doc.link(ML, H - 15, 14, 5, { pageNumber: chapterPageMap[ci - 1] });
-    }
-    if(ci < data.chapters.length - 1){
-      sf('normal', 7.5, MGREY);
-      doc.text('Next →', W - MR, H - 11, {align:'right'});
-      // forward link added in back-fill below
-    }
   }
 
-  // ── Back-fill: Next → forward links ─────────────────────────────────
-  for(let ci = 0; ci < data.chapters.length - 1; ci++){
-    doc.setPage(chapterPageMap[ci]);
-    doc.link(W - MR - 14, H - 15, 14, 5, { pageNumber: chapterPageMap[ci + 1] });
-  }
+  // stamp footer on last content page
+  footer(bookName.length > 60 ? bookName.slice(0,57)+'…' : bookName);
 
   // ── Back-fill: ToC page numbers + clickable links ────────────────────
   // Uses per-entry pdfPage so multi-page ToCs are handled correctly

@@ -82,19 +82,21 @@ def _get_toc_chapters(doc):
 
 _LLM_TOC_SYSTEM = """You are a book structure parser.
 You will be given the first pages of a book (including its table of contents).
-Extract every chapter/section that represents a substantial content unit to summarize.
+Extract EVERY entry listed in the table of contents, in the EXACT ORDER they appear.
 
 Return ONLY a JSON array, no markdown, no explanation:
 [
-  {"title": "Chapter title", "page": <1-indexed page number where chapter starts>},
+  {"title": "Section title", "page": <1-indexed page number where it starts>},
   ...
 ]
 
 Rules:
-- Include chapters, parts, sections — anything a reader would want summarized separately
-- Skip: table of contents page itself, index, bibliography, acknowledgements, permissions, 
-  list of figures/illustrations, foreword/preface ONLY if very short (< 3 pages)
-- For anthologies/readers: each essay/excerpt is its own entry
+- Preserve the EXACT order from the TOC — do not reorder, skip, or group anything
+- Include EVERYTHING: introduction, preface, foreword, acknowledgements, chapters,
+  sections, conclusion, epilogue, appendix, bibliography, index, notes, glossary —
+  every single entry that appears in the TOC
+- Only skip the table of contents page itself (the page listing the TOC)
+- For anthologies/readers: each essay/excerpt is its own entry in order
 - Page numbers must be the actual content page number shown in the TOC
 - If you cannot find a clear TOC or chapter structure, return: []
 """
@@ -263,22 +265,26 @@ def _get_regex_chapters(doc):
 
 
 _LLM_REGEX_CLEAN_SYSTEM = """You are a book structure validator.
-You will be given a list of chapter headings extracted by regex from a book PDF,
+You will be given a list of section headings extracted by regex from a book PDF,
 along with their page numbers. The list may contain noise: running headers,
 repeated titles, page headers, or false positives.
 
 Clean and validate the list. Return ONLY a JSON array:
 [
-  {"title": "Clean chapter title", "start_page": <0-indexed>, "end_page": <0-indexed>},
+  {"title": "Clean section title", "start_page": <0-indexed>, "end_page": <0-indexed>},
   ...
 ]
 
 Rules:
-- Remove obvious noise (page headers, repeated consecutive entries, very short fragments)
-- Merge entries that are clearly continuations of the same chapter heading split across lines
+- Preserve the EXACT ORDER of valid entries
+- Remove ONLY obvious noise: running page headers, exact duplicate consecutive entries,
+  fragments under 3 characters, clearly garbled text
+- Do NOT remove content sections like index, bibliography, appendix, acknowledgements —
+  these are valid book sections that belong in the output
+- Merge entries that are clearly one heading split across two regex matches
 - Keep the original 0-indexed page numbers exactly as given
 - If the list looks correct already, return it as-is
-- If fewer than 2 valid chapters remain after cleaning, return: []
+- If fewer than 2 valid entries remain after cleaning, return: []
 """
 
 def _llm_clean_regex_chapters(chapters: list, api_key: str):
