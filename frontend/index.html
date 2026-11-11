@@ -1072,8 +1072,8 @@
     <div class="key-input-row" id="keyInputRow">
       <input type="password" class="key-input" id="apiKeyInput" placeholder="Paste your OpenAI API key (sk-…)" autocomplete="off" />
       <div class="key-hint">
-        Saved only on this device — never stored on our server. &nbsp;
-        <a href="https://platform.openai.com/api-keys" target="_blank">Get a key →</a>
+        <span id="keyHintText">Saved only on this device — never stored on our server.</span> &nbsp;
+        <a href="https://platform.openai.com/api-keys" target="_blank" id="keyGetLink">Get a key →</a>
       </div>
     </div>
   </div>
@@ -1329,6 +1329,20 @@ const keyInputRow    = document.getElementById('keyInputRow');
 
 function renderKeyBar(){
   const saved = localStorage.getItem('openai_api_key');
+  const de = currentLang === 'de';
+
+  // update all text
+  document.querySelector('#keySavedChip span').textContent =
+    de ? 'OpenAI-Schlüssel auf diesem Gerät gespeichert' : 'OpenAI key saved on this device';
+  keyChangeBtn.textContent =
+    de ? 'Ändern' : 'Change';
+  document.getElementById('keyHintText').textContent =
+    de ? 'Nur auf diesem Gerät gespeichert — nie auf unserem Server.' : 'Saved only on this device — never stored on our server.';
+  document.getElementById('keyGetLink').textContent =
+    de ? 'Schlüssel holen →' : 'Get a key →';
+  apiKeyInput.placeholder =
+    de ? 'OpenAI API-Schlüssel einfügen (sk-…)' : 'Paste your OpenAI API key (sk-…)';
+
   if(saved){
     keySavedChip.style.display = 'flex';
     keyChangeBtn.style.display = 'block';
@@ -1355,7 +1369,10 @@ apiKeyInput.addEventListener('input', () => {
 });
 
 function promptKeyChange(){
-  if(!confirm('Change your saved OpenAI API key?')) return;
+  const msg = currentLang === 'de'
+    ? 'Gespeicherten OpenAI API-Schlüssel ändern?'
+    : 'Change your saved OpenAI API key?';
+  if(!confirm(msg)) return;
   localStorage.removeItem('openai_api_key');
   renderKeyBar();
 }
@@ -2038,6 +2055,12 @@ const STRINGS = {
     infoWarn2Title:   '📄 Text-based PDFs only.',
     infoWarn2Body:    'BookBrief works with books that have real selectable text — like ebooks or publisher PDFs. Scanned books (photos of pages) won\'t work. Not sure? If you can select and copy text in your PDF, you\'re good to go!',
     infoGotIt:        'Got it',
+    keySaved:         'OpenAI key saved on this device',
+    keyChange:        'Change',
+    keyHint:          'Saved only on this device — never stored on our server.',
+    keyGetLink:       'Get a key →',
+    keyPlaceholder:   'Paste your OpenAI API key (sk-…)',
+    keyConfirm:       'Change your saved OpenAI API key?',
     langToggleTip:    'Switch to German / Auf Deutsch wechseln',
   },
   de: {
@@ -2220,6 +2243,9 @@ function applyLang(lang){
   setCostRow('infoCostRow2', s.infoCost2);
   setCostRow('infoCostRow3', s.infoCost3);
   setCostRow('infoCostRow4', s.infoCost4);
+
+  // key bar strings
+  if(typeof renderKeyBar === 'function') renderKeyBar();
 
   // tier badges on model chip and model list
   const badge = document.getElementById('chipBadge');
