@@ -1329,7 +1329,7 @@ const keyInputRow    = document.getElementById('keyInputRow');
 
 function renderKeyBar(){
   const saved = localStorage.getItem('openai_api_key');
-  const de = currentLang === 'de';
+  const de = (typeof currentLang !== 'undefined' ? currentLang : localStorage.getItem('bb_lang') || 'en') === 'de';
 
   // update all text
   document.querySelector('#keySavedChip span').textContent =
