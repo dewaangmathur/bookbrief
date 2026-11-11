@@ -1640,12 +1640,12 @@ async function loadToc(filename){
     }
     tocBody.innerHTML = rows;
     summarizeBtn.disabled = false;
-    unlockDropZone();
+    // drop zone stays locked — user must Start Over to upload new PDF
   }catch(e){
     showErr(e.message);
     tocMeta.textContent='';
     summarizeBtn.disabled = false;
-    unlockDropZone();
+    unlockDropZone(); // unlock on error — no file was loaded
   } finally {
     hideWaitSnake();
   }
