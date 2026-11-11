@@ -2243,8 +2243,7 @@ function toggleLang(){
   }, 180);
 }
 
-// init lang on load
-applyLang(currentLang);
+// applyLang(currentLang) called after activeModel is defined below
 
 // ── Model picker ──────────────────────────────────────────────────────────
 const MODELS = [
@@ -2352,6 +2351,9 @@ const MODELS = [
 const DEFAULT_MODEL_ID = 'gpt-4o-mini';
 let activeModel = MODELS.find(m => m.id === DEFAULT_MODEL_ID);
 let pendingModel = null;
+
+// Init language AFTER activeModel is defined so applyLang can use it
+applyLang(currentLang);
 
 function getModelById(id){ return MODELS.find(m => m.id === id) || MODELS[0]; }
 
