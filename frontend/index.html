@@ -198,11 +198,13 @@
     font-size:clamp(32px,5.5vw,56px);
     margin:0 0 10px;
     letter-spacing:-0.02em;
-    line-height:1.1;
+    line-height:1.15;
+    padding-bottom:0.1em;
     background:linear-gradient(135deg, var(--ink) 60%, var(--gold));
     -webkit-background-clip:text;
     -webkit-text-fill-color:transparent;
     background-clip:text;
+    overflow:visible;
   }
   .subtitle{
     color:var(--muted);
@@ -1064,7 +1066,7 @@
     <!-- saved state -->
     <div class="key-saved-chip" id="keySavedChip" style="display:none;">
       <span class="dot-green"></span>
-      <span>OpenAI key saved on this device</span>
+      <span id="keySavedText"></span>
     </div>
     <button class="key-change-btn" id="keyChangeBtn" style="display:none;" onclick="promptKeyChange()">Change</button>
 
@@ -1080,7 +1082,7 @@
 
   <!-- Step 1: Book -->
   <div class="panel">
-    <h2><span class="num">1</span> Choose your book</h2>
+    <h2><span class="num">1</span> <span id="step1Label">Choose your book</span></h2>
 
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="application/pdf" />
@@ -1333,7 +1335,7 @@ function renderKeyBar(){
   const de = currentLang === 'de';
 
   // update all text
-  document.querySelector('#keySavedChip span').textContent =
+  document.getElementById('keySavedText').textContent =
     de ? 'OpenAI-Schlüssel auf diesem Gerät gespeichert' : 'OpenAI key saved on this device';
   keyChangeBtn.textContent =
     de ? 'Ändern' : 'Change';
@@ -2244,6 +2246,9 @@ function applyLang(lang){
   setCostRow('infoCostRow2', s.infoCost2);
   setCostRow('infoCostRow3', s.infoCost3);
   setCostRow('infoCostRow4', s.infoCost4);
+
+  // step 1 heading
+  setText('step1Label', s.step1);
 
   // key bar strings
   if(typeof renderKeyBar === 'function') renderKeyBar();
