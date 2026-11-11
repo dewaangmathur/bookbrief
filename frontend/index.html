@@ -2166,7 +2166,7 @@ function applyLang(lang){
 
   // footer
   const fe = document.getElementById('footerEl');
-  if(fe) fe.textContent = s.footer(activeModel ? activeModel.name : 'gpt-4o-mini');
+  if(fe) fe.textContent = s.footer(typeof activeModel !== 'undefined' && activeModel ? activeModel.name : 'gpt-4o-mini');
 
   // results headings
   setText('runSummaryLabel',   s.runSummary);
@@ -2223,7 +2223,7 @@ function applyLang(lang){
 
   // tier badges on model chip and model list
   const badge = document.getElementById('chipBadge');
-  if(badge && activeModel){
+  if(badge && typeof activeModel !== 'undefined' && activeModel){
     const tierMap = {
       cheap: s.tierCheapest, mid: s.tierAffordable,
       high: s.tierExpensive, ultra: s.tierVeryExp
