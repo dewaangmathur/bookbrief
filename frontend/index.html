@@ -1079,7 +1079,7 @@
     <h1 class="title" id="mainTitle">Chapter-Wise Book Summarizer</h1>
     <div class="subtitle" id="mainSubtitle">Drop in a PDF, and read it in minutes instead of hours.</div>
     <div class="header-actions">
-      <button class="info-btn" id="langToggleBtn" onclick="toggleLang()" title="Switch language">🇩🇪</button>
+      <button class="info-btn" id="langToggleBtn" onclick="toggleLang()" title="Switch to Deutsch">🇩🇪 DE</button>
       <button class="info-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode">🌙</button>
       <button class="info-btn" onclick="openInfoModal()" title="Usage info">👁</button>
     </div>
@@ -1952,9 +1952,12 @@ function applyLang(lang){
   if(mt) mt.textContent = s.mainTitle;
   if(ms) ms.textContent = s.mainSubtitle;
 
-  // lang button tooltip + icon
+  // lang button — always shows what you'll switch TO
   const lb = document.getElementById('langToggleBtn');
-  if(lb){ lb.title = s.langToggleTip; lb.textContent = lang === 'de' ? '🇬🇧' : '🇩🇪'; }
+  if(lb){
+    lb.title   = lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln';
+    lb.textContent = lang === 'de' ? '🇬🇧 EN' : '🇩🇪 DE';
+  }
 
   // step labels
   setText('summLangLabel', s.summLang);
@@ -1998,7 +2001,12 @@ function applyLang(lang){
 function setText(id, txt){ const el = document.getElementById(id); if(el) el.textContent = txt; }
 
 function toggleLang(){
-  applyLang(currentLang === 'en' ? 'de' : 'en');
+  const wrap = document.querySelector('.wrap');
+  if(wrap){ wrap.style.transition = 'opacity 0.18s ease'; wrap.style.opacity = '0'; }
+  setTimeout(() => {
+    applyLang(currentLang === 'en' ? 'de' : 'en');
+    if(wrap){ wrap.style.opacity = '1'; }
+  }, 180);
 }
 
 // init lang on load
