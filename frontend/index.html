@@ -1112,9 +1112,9 @@
 
     <!-- Model selector chip -->
     <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);">AI Model</span>
+      <span id="aiModelLabel" style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);">AI Model</span>
       <div class="model-chip" id="modelChip" onclick="openModelModal()">
-        <span class="chip-label">using</span>
+        <span class="chip-label" id="chipUsingLabel">using</span>
         <span class="chip-name" id="chipName">gpt-4o-mini</span>
         <span style="color:var(--gold);">✎</span>
       </div>
@@ -1175,7 +1175,7 @@
       <div class="results-toolbar">
         <h2 style="font-family:'Fraunces', serif; font-size:19px; font-weight:600; display:flex; align-items:center; gap:10px;">
           <span class="num" style="font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--gold); border:1px solid var(--gold); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center;">3</span>
-          Run summary
+          <span id="runSummaryLabel">Run summary</span>
         </h2>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="gold btn-pdf" id="downloadPdfBtn">
@@ -1192,7 +1192,7 @@
     </div>
     <div id="chapterList"></div>
     <div class="panel" id="breakdownPanel">
-      <h2><span class="num">4</span> Cost &amp; token breakdown</h2>
+      <h2><span class="num">4</span> <span id="costBreakdownLabel">Cost &amp; token breakdown</span></h2>
       <table class="toc" id="breakdownTable">
         <thead>
           <tr>
@@ -1216,52 +1216,52 @@
 <!-- ── Info / limits modal ───────────────────────────────────────────── -->
 <div class="modal-backdrop" id="infoBackdrop" onclick="handleInfoBackdrop(event)">
   <div class="modal">
-    <h3>📊 Usage limits &amp; cost guide</h3>
+    <h3 id="infoTitle">📊 Usage limits &amp; cost guide</h3>
 
     <div class="info-grid">
       <div class="info-card green">
-        <div class="info-card-label">Books per month</div>
+        <div class="info-card-label" id="infoCard1Label">Books per month</div>
         <div class="info-card-val">~450</div>
-        <div class="info-card-sub">500-page books, totally free</div>
+        <div class="info-card-sub" id="infoCard1Sub">500-page books, totally free</div>
       </div>
       <div class="info-card green">
-        <div class="info-card-label">Books per day</div>
+        <div class="info-card-label" id="infoCard2Label">Books per day</div>
         <div class="info-card-val">~15</div>
-        <div class="info-card-sub">500-page books, no problem</div>
+        <div class="info-card-sub" id="infoCard2Sub">500-page books, no problem</div>
       </div>
       <div class="info-card gold">
-        <div class="info-card-label">Your OpenAI cost</div>
+        <div class="info-card-label" id="infoCard3Label">Your OpenAI cost</div>
         <div class="info-card-val">~$0.10</div>
-        <div class="info-card-sub">per 500-page book (default model)</div>
+        <div class="info-card-sub" id="infoCard3Sub">per 500-page book (default model)</div>
       </div>
       <div class="info-card green">
-        <div class="info-card-label">Max book size</div>
+        <div class="info-card-label" id="infoCard4Label">Max book size</div>
         <div class="info-card-val">no limit</div>
-        <div class="info-card-sub">text-based PDFs only</div>
+        <div class="info-card-sub" id="infoCard4Sub">text-based PDFs only</div>
       </div>
     </div>
 
-    <div class="info-section-title">What does it cost me? (default model · gpt-4o-mini)</div>
-    <div class="info-row">Short book · ~100 pages <span>~$0.02</span></div>
-    <div class="info-row">Average book · ~300 pages <span>~$0.05</span></div>
-    <div class="info-row">Long book · ~500 pages <span>~$0.10</span></div>
-    <div class="info-row">Very long book · ~800 pages <span>~$0.20</span></div>
+    <div class="info-section-title" id="infoSec1">What does it cost me? (default model · gpt-4o-mini)</div>
+    <div class="info-row" id="infoCostRow1">Short book · ~100 pages <span>~$0.02</span></div>
+    <div class="info-row" id="infoCostRow2">Average book · ~300 pages <span>~$0.05</span></div>
+    <div class="info-row" id="infoCostRow3">Long book · ~500 pages <span>~$0.10</span></div>
+    <div class="info-row" id="infoCostRow4">Very long book · ~800 pages <span>~$0.20</span></div>
 
-    <div class="info-section-title">Switching to a fancier model?</div>
-    <div class="info-row">gpt-4.1-nano &nbsp;🟢 <span>even cheaper than default</span></div>
-    <div class="info-row">gpt-4o &nbsp;🔴 <span>~15× your bill</span></div>
-    <div class="info-row">o3 or gpt-5 &nbsp;🔴 <span>~60× your bill</span></div>
-    <div class="info-row">gpt-4.5 &nbsp;🟣 <span>~500× your bill — avoid!</span></div>
+    <div class="info-section-title" id="infoSec2">Switching to a fancier model?</div>
+    <div class="info-row">gpt-4.1-nano &nbsp;🟢 <span id="infoModel1">even cheaper than default</span></div>
+    <div class="info-row">gpt-4o &nbsp;🔴 <span id="infoModel2">~15× your bill</span></div>
+    <div class="info-row">o3 or gpt-5 &nbsp;🔴 <span id="infoModel3">~60× your bill</span></div>
+    <div class="info-row">gpt-4.5 &nbsp;🟣 <span id="infoModel4">~500× your bill — avoid!</span></div>
 
     <div class="info-warn">
-      ⏱ <b>Why does it take so long to load sometimes?</b><br>
-      The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that's what the Zero-Kaata game is for while you wait!
+      <b id="infoWarn1Title">⏱ Why does it take so long to load sometimes?</b><br>
+      <span id="infoWarn1Body">The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that's what the Zero-Kaata game is for while you wait!</span>
       <br><br>
-      📄 <b>Text-based PDFs only.</b> BookBrief works with books that have real selectable text — like ebooks or publisher PDFs. Scanned books (photos of pages) won't work. Not sure? If you can select and copy text in your PDF, you're good to go!
+      <b id="infoWarn2Title">📄 Text-based PDFs only.</b> <span id="infoWarn2Body">BookBrief works with books that have real selectable text — like ebooks or publisher PDFs. Scanned books (photos of pages) won't work. Not sure? If you can select and copy text in your PDF, you're good to go!</span>
     </div>
 
     <div class="modal-row" style="margin-top:18px;">
-      <button onclick="closeInfoModal()">Got it</button>
+      <button id="infoGotItBtn" onclick="closeInfoModal()">Got it</button>
     </div>
   </div>
 </div>
@@ -1272,20 +1272,20 @@
 
     <!-- Step 1: pick a model -->
     <div id="modalStep1">
-      <h3>Choose AI Model</h3>
+      <h3 id="chooseModelTitle">Choose AI Model</h3>
       <div class="model-list" id="modelList"><!-- rendered by JS --></div>
       <div class="modal-row">
-        <button class="secondary" onclick="closeModelModal()">Cancel</button>
+        <button class="secondary" id="modelCancelBtn" onclick="closeModelModal()">Cancel</button>
         <button id="modelNextBtn" onclick="goToConfirm()">Next →</button>
       </div>
     </div>
 
     <!-- Step 2: confirm + cost comparison -->
     <div id="modalStep2" style="display:none;">
-      <h3>Confirm model switch</h3>
+      <h3 id="confirmModelTitle">Confirm model switch</h3>
       <div class="confirm-box" id="confirmBox"><!-- filled by JS --></div>
       <div class="modal-row">
-        <button class="secondary" onclick="backToStep1()">← Back</button>
+        <button class="secondary" id="modelBackBtn" onclick="backToStep1()">← Back</button>
         <button id="confirmSwitchBtn" onclick="confirmSwitch()">Yes, switch model</button>
       </div>
     </div>
@@ -1455,7 +1455,7 @@ async function uploadFile(file){
     return;
   }
   clearErr();
-  uploadStatusMsg.textContent = `Uploading ${file.name}…`;
+  uploadStatusMsg.textContent = (STRINGS[currentLang]||STRINGS.en).uploading(file.name);
   uploadStatus.classList.add('active');
   dropZone.style.opacity = '0.6';
   try{
@@ -1966,54 +1966,154 @@ function toggleTheme(){
 // ── Language toggle (UI + summary output) ─────────────────────────────────
 const STRINGS = {
   en: {
-    mainTitle:       'Chapter-Wise Book Summarizer',
-    mainSubtitle:    'Drop in a PDF, and read it in minutes instead of hours.',
-    step1:           'Choose your book',
-    dropTitle:       'Drop your PDF here',
-    dropSub:         'or click to browse — text-based PDFs only',
-    recentLabel:     'Recently uploaded',
-    recentEmpty:     'No books yet — upload one above',
-    step2:           'Table of contents',
-    detecting:       'Detecting chapters…',
-    aiModel:         'AI Model',
-    summParams:      'Summary parameters',
-    wpp:             'Words per page',
-    wppHint:         'Controls density — more words = more detailed per page',
-    maxW:            'Max words per chapter',
-    maxWHint:        'Caps the longest chapter summary (regardless of page count)',
-    summLang:        'Summary language',
-    summLangEn:      'English',
-    summLangDe:      'Deutsch',
-    summarizeBtn:    'Summarize this book →',
-    resetBtn:        'Reset defaults',
-    summWorking:     'Summarizing chapters, this can take a bit…',
-    downloadPdf:     'Download PDF Report',
-    langToggleTip:   'Switch to German / Auf Deutsch wechseln',
+    // masthead
+    mainTitle:        'Chapter-Wise Book Summarizer',
+    mainSubtitle:     'Drop in a PDF, and read it in minutes instead of hours.',
+    // step 1
+    step1:            'Choose your book',
+    dropTitle:        'Drop your PDF here',
+    dropSub:          'or click to browse — text-based PDFs only',
+    recentLabel:      'Recently uploaded',
+    recentEmpty:      'No books yet — upload one above',
+    uploading:        (name) => `Uploading ${name}…`,
+    // step 2 / TOC
+    step2:            'Table of contents',
+    detecting:        'Detecting chapters — LLM is reading your book\'s table of contents…',
+    // AI model chip
+    aiModel:          'AI Model',
+    chipUsing:        'using',
+    tierCheapest:     'cheapest',
+    tierAffordable:   'affordable',
+    tierExpensive:    'expensive',
+    tierVeryExp:      'very expensive',
+    // model modal
+    chooseModelTitle: 'Choose AI Model',
+    modelNextBtn:     'Next →',
+    confirmTitle:     'Confirm model switch',
+    confirmYes:       'Yes, switch model',
+    backBtn:          '← Back',
+    cancelBtn:        'Cancel',
+    // params
+    summParams:       'Summary parameters',
+    wpp:              'Words per page',
+    wppHint:          'Controls density — more words = more detailed per page',
+    maxW:             'Max words per chapter',
+    maxWHint:         'Caps the longest chapter summary (regardless of page count)',
+    summLang:         'Summary language',
+    summLangEn:       'English',
+    summLangDe:       'Deutsch',
+    // buttons
+    summarizeBtn:     'Summarize this book →',
+    resetBtn:         'Reset defaults',
+    summWorking:      'Summarizing your book — this takes a few minutes for large books…',
+    downloadPdf:      'PDF',
+    downloadWord:     'Word',
+    // results
+    runSummary:       'Run summary',
+    costBreakdown:    'Cost & token breakdown',
+    // footer
+    footer:           (model) => `BookBrief · ${model} · Made with ☕`,
+    // info modal
+    infoTitle:        '📊 Usage limits & cost guide',
+    infoCard1Label:   'Books per month',
+    infoCard1Sub:     '500-page books, totally free',
+    infoCard2Label:   'Books per day',
+    infoCard2Sub:     '500-page books, no problem',
+    infoCard3Label:   'Your OpenAI cost',
+    infoCard3Sub:     'per 500-page book (default model)',
+    infoCard4Label:   'Max book size',
+    infoCard4Sub:     'text-based PDFs only',
+    infoSec1:         'What does it cost me? (default model · gpt-4o-mini)',
+    infoCost1:        'Short book · ~100 pages',
+    infoCost2:        'Average book · ~300 pages',
+    infoCost3:        'Long book · ~500 pages',
+    infoCost4:        'Very long book · ~800 pages',
+    infoSec2:         'Switching to a fancier model?',
+    infoModel1:       'even cheaper than default',
+    infoModel2:       '~15× your bill',
+    infoModel3:       '~60× your bill',
+    infoModel4:       '~500× your bill — avoid!',
+    infoWarn1Title:   '⏱ Why does it take so long to load sometimes?',
+    infoWarn1Body:    'The server goes to sleep after 15 minutes of nobody using it. First visit of the day wakes it up — that\'s what the Zero-Kaata game is for while you wait!',
+    infoWarn2Title:   '📄 Text-based PDFs only.',
+    infoWarn2Body:    'BookBrief works with books that have real selectable text — like ebooks or publisher PDFs. Scanned books (photos of pages) won\'t work. Not sure? If you can select and copy text in your PDF, you\'re good to go!',
+    infoGotIt:        'Got it',
+    langToggleTip:    'Switch to German / Auf Deutsch wechseln',
   },
   de: {
-    mainTitle:       'Kapitelweise Buchzusammenfassung',
-    mainSubtitle:    'PDF hochladen und in Minuten statt Stunden lesen.',
-    step1:           'Buch auswählen',
-    dropTitle:       'PDF hier ablegen',
-    dropSub:         'oder klicken zum Durchsuchen — nur textbasierte PDFs',
-    recentLabel:     'Zuletzt hochgeladen',
-    recentEmpty:     'Noch kein Buch — oben hochladen',
-    step2:           'Inhaltsverzeichnis',
-    detecting:       'Kapitel werden erkannt…',
-    aiModel:         'KI-Modell',
-    summParams:      'Zusammenfassungsparameter',
-    wpp:             'Wörter pro Seite',
-    wppHint:         'Dichte steuern — mehr Wörter = detaillierter pro Seite',
-    maxW:            'Max. Wörter pro Kapitel',
-    maxWHint:        'Begrenzt die längste Kapitelzusammenfassung',
-    summLang:        'Zusammenfassungssprache',
-    summLangEn:      'Englisch',
-    summLangDe:      'Deutsch',
-    summarizeBtn:    'Dieses Buch zusammenfassen →',
-    resetBtn:        'Zurücksetzen',
-    summWorking:     'Kapitel werden zusammengefasst, bitte etwas Geduld…',
-    downloadPdf:     'PDF-Bericht herunterladen',
-    langToggleTip:   'Switch to English / Auf Englisch wechseln',
+    // masthead
+    mainTitle:        'Kapitelweise Buchzusammenfassung',
+    mainSubtitle:     'PDF hochladen und in Minuten statt Stunden lesen.',
+    // step 1
+    step1:            'Buch auswählen',
+    dropTitle:        'PDF hier ablegen',
+    dropSub:          'oder klicken zum Durchsuchen — nur textbasierte PDFs',
+    recentLabel:      'Zuletzt hochgeladen',
+    recentEmpty:      'Noch kein Buch — oben hochladen',
+    uploading:        (name) => `${name} wird hochgeladen…`,
+    // step 2 / TOC
+    step2:            'Inhaltsverzeichnis',
+    detecting:        'Kapitel werden erkannt — KI liest das Inhaltsverzeichnis…',
+    // AI model chip
+    aiModel:          'KI-Modell',
+    chipUsing:        'verwendet',
+    tierCheapest:     'günstigste',
+    tierAffordable:   'erschwinglich',
+    tierExpensive:    'teuer',
+    tierVeryExp:      'sehr teuer',
+    // model modal
+    chooseModelTitle: 'KI-Modell wählen',
+    modelNextBtn:     'Weiter →',
+    confirmTitle:     'Modellwechsel bestätigen',
+    confirmYes:       'Ja, Modell wechseln',
+    backBtn:          '← Zurück',
+    cancelBtn:        'Abbrechen',
+    // params
+    summParams:       'Zusammenfassungsparameter',
+    wpp:              'Wörter pro Seite',
+    wppHint:          'Dichte steuern — mehr Wörter = detaillierter pro Seite',
+    maxW:             'Max. Wörter pro Kapitel',
+    maxWHint:         'Begrenzt die längste Kapitelzusammenfassung',
+    summLang:         'Zusammenfassungssprache',
+    summLangEn:       'Englisch',
+    summLangDe:       'Deutsch',
+    // buttons
+    summarizeBtn:     'Dieses Buch zusammenfassen →',
+    resetBtn:         'Zurücksetzen',
+    summWorking:      'Kapitel werden zusammengefasst — bei großen Büchern dauert es etwas…',
+    downloadPdf:      'PDF',
+    downloadWord:     'Word',
+    // results
+    runSummary:       'Zusammenfassung',
+    costBreakdown:    'Kosten & Token-Übersicht',
+    // footer
+    footer:           (model) => `BookBrief · ${model} · Mit ☕ gemacht`,
+    // info modal
+    infoTitle:        '📊 Nutzungslimits & Kostenübersicht',
+    infoCard1Label:   'Bücher pro Monat',
+    infoCard1Sub:     '500-seitige Bücher, völlig kostenlos',
+    infoCard2Label:   'Bücher pro Tag',
+    infoCard2Sub:     '500-seitige Bücher, kein Problem',
+    infoCard3Label:   'Deine OpenAI-Kosten',
+    infoCard3Sub:     'pro 500-seitiges Buch (Standardmodell)',
+    infoCard4Label:   'Max. Buchgröße',
+    infoCard4Sub:     'nur textbasierte PDFs',
+    infoSec1:         'Was kostet es? (Standardmodell · gpt-4o-mini)',
+    infoCost1:        'Kurzes Buch · ~100 Seiten',
+    infoCost2:        'Durchschnittliches Buch · ~300 Seiten',
+    infoCost3:        'Langes Buch · ~500 Seiten',
+    infoCost4:        'Sehr langes Buch · ~800 Seiten',
+    infoSec2:         'Zu einem besseren Modell wechseln?',
+    infoModel1:       'noch günstiger als Standard',
+    infoModel2:       '~15× deine Rechnung',
+    infoModel3:       '~60× deine Rechnung',
+    infoModel4:       '~500× deine Rechnung — vermeiden!',
+    infoWarn1Title:   '⏱ Warum dauert das Laden manchmal so lange?',
+    infoWarn1Body:    'Der Server schläft nach 15 Minuten Inaktivität ein. Der erste Besuch des Tages weckt ihn — dafür ist das Zero-Kaata-Spiel da!',
+    infoWarn2Title:   '📄 Nur textbasierte PDFs.',
+    infoWarn2Body:    'BookBrief funktioniert mit Büchern, die echten auswählbaren Text enthalten — wie E-Books oder Verlags-PDFs. Gescannte Bücher (Fotos von Seiten) funktionieren nicht. Nicht sicher? Wenn du Text im PDF markieren und kopieren kannst, bist du dabei!',
+    infoGotIt:        'Verstanden',
+    langToggleTip:    'Switch to English / Auf Englisch wechseln',
   },
 };
 
@@ -2037,42 +2137,98 @@ function applyLang(lang){
     lb.textContent = lang === 'de' ? '🇬🇧 EN' : '🇩🇪 DE';
   }
 
-  // step labels
-  setText('summLangLabel', s.summLang);
+  // params panel
+  setText('summLangLabel',   s.summLang);
   setText('summLangEnLabel', s.summLangEn);
   setText('summLangDeLabel', s.summLangDe);
-  setText('summarizeBtn', s.summarizeBtn);
-  setText('resetParamsBtn', s.resetBtn);
+  setText('summarizeBtn',    s.summarizeBtn);
+  setText('resetParamsBtn',  s.resetBtn);
 
-  // params labels — find by content proximity (use data attrs set below)
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if(s[key]) el.textContent = s[key];
-  });
+  // AI model chip
+  setText('aiModelLabel',    s.aiModel);
+  setText('chipUsingLabel',  s.chipUsing);
 
-  // step 1 heading
-  const step1h = document.querySelector('#tocPanel h2 .num');
-  // Drop zone
+  // drop zone
   const dTitle = document.querySelector('.drop-title');
   const dSub   = document.querySelector('.drop-sub');
   if(dTitle) dTitle.textContent = s.dropTitle;
   if(dSub)   dSub.textContent   = s.dropSub;
 
-  // recent books label
+  // recent books
   const rl = document.querySelector('.recent-label');
   if(rl) rl.textContent = s.recentLabel;
+  const re = document.querySelector('.recent-empty');
+  if(re) re.textContent = s.recentEmpty;
 
-  // summarize status message
-  const ss = document.getElementById('summarizeStatus');
-  const ssSpan = ss ? ss.querySelector('span:last-child') : null;
+  // summarize working status
+  const ssSpan = document.querySelector('#summarizeStatus span:last-child');
   if(ssSpan) ssSpan.textContent = s.summWorking;
 
-  // PDF download button text
-  const pdfBtn = document.getElementById('downloadPdfBtn');
-  if(pdfBtn){
-    const svgEl = pdfBtn.querySelector('svg');
-    pdfBtn.textContent = s.downloadPdf;
-    if(svgEl) pdfBtn.prepend(svgEl);
+  // footer
+  const fe = document.getElementById('footerEl');
+  if(fe) fe.textContent = s.footer(activeModel ? activeModel.name : 'gpt-4o-mini');
+
+  // results headings
+  setText('runSummaryLabel',   s.runSummary);
+  setText('costBreakdownLabel', s.costBreakdown);
+
+  // PDF / Word buttons (keep SVG intact)
+  const pdfBtn  = document.getElementById('downloadPdfBtn');
+  const wordBtn = document.getElementById('downloadDocxBtn');
+  if(pdfBtn){  const svg=pdfBtn.querySelector('svg');  pdfBtn.textContent=s.downloadPdf;  if(svg) pdfBtn.prepend(svg); }
+  if(wordBtn){ const svg=wordBtn.querySelector('svg'); wordBtn.textContent=s.downloadWord; if(svg) wordBtn.prepend(svg); }
+
+  // model modal
+  setText('chooseModelTitle',  s.chooseModelTitle);
+  setText('modelNextBtn',      s.modelNextBtn);
+  setText('confirmModelTitle', s.confirmTitle);
+  setText('confirmSwitchBtn',  s.confirmYes);
+  setText('modelCancelBtn',    s.cancelBtn);
+  setText('modelBackBtn',      s.backBtn);
+
+  // info modal
+  setText('infoTitle',       s.infoTitle);
+  setText('infoCard1Label',  s.infoCard1Label);
+  setText('infoCard1Sub',    s.infoCard1Sub);
+  setText('infoCard2Label',  s.infoCard2Label);
+  setText('infoCard2Sub',    s.infoCard2Sub);
+  setText('infoCard3Label',  s.infoCard3Label);
+  setText('infoCard3Sub',    s.infoCard3Sub);
+  setText('infoCard4Label',  s.infoCard4Label);
+  setText('infoCard4Sub',    s.infoCard4Sub);
+  setText('infoSec1',        s.infoSec1);
+  setText('infoSec2',        s.infoSec2);
+  setText('infoModel1',      s.infoModel1);
+  setText('infoModel2',      s.infoModel2);
+  setText('infoModel3',      s.infoModel3);
+  setText('infoModel4',      s.infoModel4);
+  setText('infoWarn1Title',  s.infoWarn1Title);
+  setText('infoWarn1Body',   s.infoWarn1Body);
+  setText('infoWarn2Title',  s.infoWarn2Title);
+  setText('infoWarn2Body',   s.infoWarn2Body);
+  setText('infoGotItBtn',    s.infoGotIt);
+
+  // cost rows — text nodes have the label, span has the price
+  function setCostRow(id, label){
+    const el = document.getElementById(id);
+    if(!el) return;
+    const span = el.querySelector('span');
+    const price = span ? span.outerHTML : '';
+    el.innerHTML = label + ' ' + price;
+  }
+  setCostRow('infoCostRow1', s.infoCost1);
+  setCostRow('infoCostRow2', s.infoCost2);
+  setCostRow('infoCostRow3', s.infoCost3);
+  setCostRow('infoCostRow4', s.infoCost4);
+
+  // tier badges on model chip and model list
+  const badge = document.getElementById('chipBadge');
+  if(badge && activeModel){
+    const tierMap = {
+      cheap: s.tierCheapest, mid: s.tierAffordable,
+      high: s.tierExpensive, ultra: s.tierVeryExp
+    };
+    badge.textContent = tierMap[activeModel.tier] || activeModel.tierLabel;
   }
 }
 
@@ -2202,10 +2358,12 @@ function getModelById(id){ return MODELS.find(m => m.id === id) || MODELS[0]; }
 function updateChip(){
   document.getElementById('chipName').textContent = activeModel.name;
   const badge = document.getElementById('chipBadge');
-  badge.textContent = activeModel.tierLabel;
+  const s = STRINGS[currentLang] || STRINGS.en;
+  const tierMap = { cheap: s.tierCheapest, mid: s.tierAffordable, high: s.tierExpensive, ultra: s.tierVeryExp };
+  badge.textContent = tierMap[activeModel.tier] || activeModel.tierLabel;
   badge.className = `cost-badge cost-${activeModel.tier}`;
-  document.getElementById('footerEl').textContent =
-    `BookBrief · ${activeModel.name} · Made with ☕`;
+  const fe = document.getElementById('footerEl');
+  if(fe) fe.textContent = s.footer(activeModel.name);
 }
 
 function renderModelList(){
