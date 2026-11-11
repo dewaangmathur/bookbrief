@@ -76,69 +76,57 @@
     100%{transform:translate(30px,20px) scale(1.08);}
   }
 
-  /* ── Side columns (floating book quotes) ──────────────────────────── */
+  /* ── Side columns (floating AI words) ─────────────────────────────── */
   .side-col{
     position:fixed;
-    top:0; bottom:0; width:140px;
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    gap:28px; padding:40px 0;
+    top:0; bottom:0; width:120px;
     pointer-events:none; z-index:0;
     overflow:hidden;
   }
   .side-col.left{ left:0; }
   .side-col.right{ right:0; }
-  .side-word{
-    font-family:'Fraunces', serif;
-    font-size:11px;
-    font-style:italic;
-    color:var(--rule);
-    writing-mode:vertical-rl;
-    text-orientation:mixed;
-    letter-spacing:0.12em;
-    opacity:0;
-    animation:wordFloat 8s ease-in-out infinite;
-    transition:color var(--transition);
-  }
-  .side-col.left .side-word{ transform:rotate(180deg); }
-  .side-word:nth-child(1){ animation-delay:0s;    animation-duration:9s; }
-  .side-word:nth-child(2){ animation-delay:1.5s;  animation-duration:11s; }
-  .side-word:nth-child(3){ animation-delay:3s;    animation-duration:8s; }
-  .side-word:nth-child(4){ animation-delay:4.5s;  animation-duration:10s; }
-  .side-word:nth-child(5){ animation-delay:6s;    animation-duration:12s; }
-  .side-word:nth-child(6){ animation-delay:2s;    animation-duration:7s; }
-  @keyframes wordFloat{
-    0%  { opacity:0; transform:translateY(20px) rotate(180deg); }
-    15% { opacity:0.35; }
-    50% { opacity:0.5; transform:translateY(-8px) rotate(180deg); }
-    85% { opacity:0.35; }
-    100%{ opacity:0; transform:translateY(-28px) rotate(180deg); }
-  }
-  .side-col.right .side-word{
-    animation-name:wordFloatR;
-  }
-  @keyframes wordFloatR{
-    0%  { opacity:0; transform:translateY(20px); }
-    15% { opacity:0.35; }
-    50% { opacity:0.5; transform:translateY(-8px); }
-    85% { opacity:0.35; }
-    100%{ opacity:0; transform:translateY(-28px); }
-  }
-  /* thin gold line on inner edge */
-  .side-col.left::after, .side-col.right::after{
+
+  /* inner gold gradient edge line */
+  .side-col::after{
     content:'';
-    position:absolute; top:15%; bottom:15%;
+    position:absolute; top:0; bottom:0;
     width:1px;
-    background:linear-gradient(to bottom, transparent, var(--rule) 30%, var(--gold) 50%, var(--rule) 70%, transparent);
-    opacity:0.4;
-    animation:linePulse 4s ease-in-out infinite alternate;
+    background:linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--rule) 20%,
+      var(--gold) 50%,
+      var(--rule) 80%,
+      transparent 100%
+    );
+    animation:linePulse 5s ease-in-out infinite alternate;
   }
   .side-col.left::after{ right:0; }
   .side-col.right::after{ left:0; }
   @keyframes linePulse{
-    from{ opacity:0.2; }
-    to{ opacity:0.5; }
+    from{ opacity:0.15; transform:scaleY(0.8); }
+    to{   opacity:0.55; transform:scaleY(1); }
   }
+
+  /* each word is absolutely positioned and animated independently by JS */
+  .side-word{
+    position:absolute;
+    font-family:'Fraunces', serif;
+    font-size:12px;
+    font-style:italic;
+    font-weight:500;
+    color:var(--gold);
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    letter-spacing:0.15em;
+    opacity:0;
+    left:50%;
+    transform:translateX(-50%) translateY(0px);
+    white-space:nowrap;
+    text-shadow:0 0 20px rgba(169,120,47,0.3);
+    transition:color var(--transition);
+  }
+
   @media(max-width:1200px){ .side-col{ display:none; } }
 
   .wrap{
@@ -1020,22 +1008,8 @@
 <body>
 
 <!-- ── Animated side columns ─────────────────────────────────────────── -->
-<div class="side-col left" aria-hidden="true">
-  <span class="side-word">Summary</span>
-  <span class="side-word">Chapter</span>
-  <span class="side-word">Insight</span>
-  <span class="side-word">Analysis</span>
-  <span class="side-word">Knowledge</span>
-  <span class="side-word">Narrative</span>
-</div>
-<div class="side-col right" aria-hidden="true">
-  <span class="side-word">Argument</span>
-  <span class="side-word">Theory</span>
-  <span class="side-word">Evidence</span>
-  <span class="side-word">Context</span>
-  <span class="side-word">Discourse</span>
-  <span class="side-word">Synthesis</span>
-</div>
+<div class="side-col left" id="sideLeft" aria-hidden="true"></div>
+<div class="side-col right" id="sideRight" aria-hidden="true"></div>
 
 <!-- ── Wait TTT overlay (shown during chapter detect + summarize) ────── -->
 <div class="modal-backdrop" id="waitTTTBackdrop" style="pointer-events:none;">
@@ -1868,6 +1842,110 @@ function handleInfoBackdrop(e){
   window.stopSnake = function(){}; // called by dismiss(), no-op for TTT
   setTimeout(()=>wakeTTT.restart(), 1000);
 
+})();
+
+// ── Side column word animation ────────────────────────────────────────────
+(function(){
+  const LEFT_WORDS  = [
+    'Summary','Chapter','Insight','Analysis','Knowledge',
+    'Narrative','Concept','Theme','Argument','Theory',
+    'Critique','Premise','Abstract','Structure','Clarity',
+  ];
+  const RIGHT_WORDS = [
+    'Evidence','Context','Discourse','Synthesis','Perspective',
+    'Inference','Hypothesis','Framework','Rhetoric','Paradigm',
+    'Dialogue','Conclusion','Catalyst','Reflection','Wisdom',
+  ];
+
+  function shuffle(arr){ return [...arr].sort(()=>Math.random()-.5); }
+
+  function animateSide(colEl, words, dir){
+    if(!colEl) return;
+    const H = window.innerHeight;
+    let pool = shuffle(words);
+    let idx  = 0;
+
+    function spawnWord(){
+      if(window.innerWidth < 1200) return;
+
+      const word = pool[idx % pool.length];
+      idx++;
+      if(idx >= pool.length){ pool = shuffle(words); idx = 0; }
+
+      const span = document.createElement('span');
+      span.className = 'side-word';
+      span.textContent = word;
+      colEl.appendChild(span);
+
+      // random horizontal position within column (20–80%)
+      const xPct = 20 + Math.random() * 60;
+      span.style.left = xPct + '%';
+
+      // start below viewport, drift upward
+      const startY = H + 20;
+      const endY   = -80;
+      const dur    = 9000 + Math.random() * 7000; // 9–16s
+      const delay  = Math.random() * 1500;
+
+      // size variation — some words bigger
+      const size = 10 + Math.floor(Math.random() * 5);
+      span.style.fontSize = size + 'px';
+
+      // gold vs muted variation
+      span.style.color = Math.random() > 0.4 ? 'var(--gold)' : 'var(--muted)';
+      span.style.opacity = '0';
+
+      // flip left column so text reads bottom-to-top naturally
+      if(dir === 'left'){
+        span.style.transform = `translateX(-50%) translateY(${startY}px) rotate(180deg)`;
+      } else {
+        span.style.transform = `translateX(-50%) translateY(${startY}px)`;
+      }
+
+      setTimeout(() => {
+        span.style.transition = `transform ${dur}ms linear, opacity 1.5s ease`;
+        const finalTransform = dir === 'left'
+          ? `translateX(-50%) translateY(${endY}px) rotate(180deg)`
+          : `translateX(-50%) translateY(${endY}px)`;
+        span.style.transform = finalTransform;
+        span.style.opacity   = String(0.35 + Math.random() * 0.4);
+
+        // fade out near end
+        setTimeout(() => {
+          span.style.transition = `transform ${dur}ms linear, opacity 2s ease`;
+          span.style.opacity = '0';
+        }, dur - 2200);
+
+        // remove after animation
+        setTimeout(() => { span.remove(); }, dur + delay + 200);
+      }, delay + 50);
+    }
+
+    // spawn words at intervals
+    function loop(){
+      spawnWord();
+      setTimeout(loop, 1800 + Math.random() * 1400);
+    }
+
+    // stagger left vs right start
+    setTimeout(loop, dir === 'left' ? 0 : 900);
+  }
+
+  const leftEl  = document.getElementById('sideLeft');
+  const rightEl = document.getElementById('sideRight');
+
+  // wait for fonts to load before starting
+  if(document.fonts){
+    document.fonts.ready.then(() => {
+      animateSide(leftEl,  LEFT_WORDS,  'left');
+      animateSide(rightEl, RIGHT_WORDS, 'right');
+    });
+  } else {
+    setTimeout(() => {
+      animateSide(leftEl,  LEFT_WORDS,  'left');
+      animateSide(rightEl, RIGHT_WORDS, 'right');
+    }, 500);
+  }
 })();
 
 // ── Theme toggle ──────────────────────────────────────────────────────────
