@@ -221,6 +221,114 @@ def summarize_book():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/export/docx", methods=["POST"])
+def export_docx():
+    """Generate and return a Word (.docx) document from summary data."""
+    import io
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from flask import send_file
+
+    body = request.get_json(silent=True) or {}
+    data = body.get("data")
+    if not data:
+        return jsonify({"error": "No summary data provided"}), 400
+
+    doc = Document()
+
+    # Page margins
+    for section in doc.sections:
+        section.top_margin    = Inches(1.0)
+        section.bottom_margin = Inches(1.0)
+        section.left_margin   = Inches(1.2)
+        section.right_margin  = Inches(1.2)
+
+    # Styles
+    style = doc.styles['Normal']
+    style.font.name = 'Georgia'
+    style.font.size = Pt(11)
+
+    # ── Cover info ───────────────────────────────────────────────────────
+    book_name = (data.get("filename") or "Book Summary").replace(".pdf", "")
+    t = doc.add_paragraph()
+    t.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = t.add_run("BOOKBRIEF — CHAPTER SUMMARY REPORT")
+    run.font.size = Pt(8)
+    run.font.color.rgb = RGBColor(0x6f, 0x66, 0x56)
+
+    title_p = doc.add_paragraph()
+    title_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    title_run = title_p.add_run(book_name)
+    title_run.bold = True
+    title_run.font.size = Pt(20)
+    title_run.font.name = 'Georgia'
+
+    s = data.get("stats", {})
+    meta = doc.add_paragraph()
+    meta.add_run(f"Chapters: {len(data.get('chapters', []))}   ·   "
+                 f"Pages: {data.get('total_pages', '—')}   ·   "
+                 f"Model: {s.get('model', 'gpt-4o-mini')}   ·   "
+                 f"Cost: ${s.get('total_cost_usd', 0):.4f}")
+    meta.runs[0].font.size = Pt(9)
+    meta.runs[0].font.color.rgb = RGBColor(0x6f, 0x66, 0x56)
+
+    doc.add_paragraph()  # spacer
+
+    # ── Table of contents ────────────────────────────────────────────────
+    toc_heading = doc.add_paragraph()
+    toc_run = toc_heading.add_run("Contents")
+    toc_run.bold = True
+    toc_run.font.size = Pt(14)
+
+    for i, ch in enumerate(data.get("chapters", [])):
+        p = doc.add_paragraph()
+        p.paragraph_format.left_indent = Inches(0.1)
+        r = p.add_run(f"{str(i+1).zfill(2)}  {ch.get('title', '')}")
+        r.font.size = Pt(10)
+
+    doc.add_page_break()
+
+    # ── Chapters ─────────────────────────────────────────────────────────
+    for i, ch in enumerate(data.get("chapters", [])):
+        # Chapter heading
+        h = doc.add_paragraph()
+        num_run = h.add_run(f"{str(i+1).zfill(2)} / {len(data['chapters'])}   ")
+        num_run.font.size = Pt(9)
+        num_run.font.color.rgb = RGBColor(0xA9, 0x78, 0x2F)
+        title_run = h.add_run(ch.get("title", ""))
+        title_run.bold = True
+        title_run.font.size = Pt(15)
+
+        # Meta
+        m = doc.add_paragraph()
+        m.add_run(f"{ch.get('pages', 0)} pages  ·  ${ch.get('cost_usd', 0):.4f}")
+        m.runs[0].font.size = Pt(8)
+        m.runs[0].font.color.rgb = RGBColor(0x6f, 0x66, 0x56)
+
+        # Summary body
+        for para_text in (ch.get("summary") or "").split("\n\n"):
+            if para_text.strip():
+                p = doc.add_paragraph(para_text.strip())
+                p.paragraph_format.space_after = Pt(6)
+                p.paragraph_format.line_spacing = Pt(16)
+
+        doc.add_paragraph()  # spacing between chapters
+
+    # ── Save to buffer ───────────────────────────────────────────────────
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    safe_name = book_name.replace(" ", "_")[:60]
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"{safe_name}_summary.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
 @app.route("/api/logs", methods=["GET"])
 def list_logs():
     files = sorted(
