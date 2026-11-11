@@ -1295,9 +1295,10 @@
 
 <script>
 const API = '';
+let currentLang = localStorage.getItem('bb_lang') || 'en'; // declared early — used by renderKeyBar at init
 let currentFilename = null;
 let lastResultData = null;
-let currentChapters = null;       // full chapter list from last preview (with start/end pages)
+let currentChapters = null;
 let currentDetectionMethod = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -1329,7 +1330,7 @@ const keyInputRow    = document.getElementById('keyInputRow');
 
 function renderKeyBar(){
   const saved = localStorage.getItem('openai_api_key');
-  const de = (typeof currentLang !== 'undefined' ? currentLang : localStorage.getItem('bb_lang') || 'en') === 'de';
+  const de = currentLang === 'de';
 
   // update all text
   document.querySelector('#keySavedChip span').textContent =
@@ -2140,7 +2141,7 @@ const STRINGS = {
   },
 };
 
-let currentLang = localStorage.getItem('bb_lang') || 'en';
+// currentLang declared at top of script
 
 function applyLang(lang){
   currentLang = lang;
