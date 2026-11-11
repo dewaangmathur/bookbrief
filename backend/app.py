@@ -116,6 +116,11 @@ def summarize_book():
     words_per_page = max(10, min(words_per_page, 300))
     max_words      = max(100, min(max_words, 8000))
 
+    # Summary output language
+    summary_language = body.get("summary_language", "en").strip().lower()
+    if summary_language not in ("en", "de"):
+        summary_language = "en"
+
     # Model selection — whitelist to prevent arbitrary strings hitting OpenAI
     ALLOWED_MODELS = {
         "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-4",
@@ -164,6 +169,7 @@ def summarize_book():
             summary, in_tok, out_tok, elapsed, chunks_used = summarize_chapter(
                 ch["title"], ch["text"], api_key=api_key, num_pages=ch["num_pages"],
                 words_per_page=words_per_page, max_words=max_words, model=model,
+                summary_language=summary_language,
             )
             return idx, ch, summary, in_tok, out_tok, elapsed, chunks_used
 

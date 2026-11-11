@@ -54,23 +54,32 @@ def _call_openai(client, system_prompt: str, user_prompt: str, max_tokens: int =
     return text, usage.prompt_tokens, usage.completion_tokens
 
 
-CHUNK_SYSTEM_PROMPT = (
-    "You are an expert book summarizer. Summarize the given excerpt of a "
-    "book chapter clearly and faithfully, preserving key ideas, arguments, "
-    "characters, and events. Do not add outside information. Be thorough: "
-    "make sure every distinct idea, argument, event, or claim in the excerpt "
-    "is represented in the summary, not just the first or most obvious ones."
-)
+_LANG_INSTRUCTION = {
+    "en": "",   # default, no extra instruction needed
+    "de": " Antworte ausschließlich auf Deutsch. Verwende eine klare, akademische Sprache.",
+}
 
-FINAL_SYSTEM_PROMPT = (
-    "You are an expert book summarizer. You will be given partial summaries "
-    "of consecutive sections of one chapter. Combine them into a single, "
-    "coherent, well-structured chapter summary in flowing prose with clear "
-    "paragraphs. Preserve every distinct point, argument, or event from the "
-    "partial summaries so nothing is lost - do not compress by dropping "
-    "content, only by removing redundancy. Keep the narrative/argument "
-    "order, and do not mention that this was made from parts."
-)
+def _chunk_prompt(lang: str = "en") -> str:
+    base = (
+        "You are an expert book summarizer. Summarize the given excerpt of a "
+        "book chapter clearly and faithfully, preserving key ideas, arguments, "
+        "characters, and events. Do not add outside information. Be thorough: "
+        "make sure every distinct idea, argument, event, or claim in the excerpt "
+        "is represented in the summary, not just the first or most obvious ones."
+    )
+    return base + _LANG_INSTRUCTION.get(lang, "")
+
+def _final_prompt(lang: str = "en") -> str:
+    base = (
+        "You are an expert book summarizer. You will be given partial summaries "
+        "of consecutive sections of one chapter. Combine them into a single, "
+        "coherent, well-structured chapter summary in flowing prose with clear "
+        "paragraphs. Preserve every distinct point, argument, or event from the "
+        "partial summaries so nothing is lost - do not compress by dropping "
+        "content, only by removing redundancy. Keep the narrative/argument "
+        "order, and do not mention that this was made from parts."
+    )
+    return base + _LANG_INSTRUCTION.get(lang, "")
 
 
 def _target_word_count(num_pages: int, words_per_page: int = 55, max_words: int = 2200) -> int:
@@ -91,7 +100,8 @@ def _max_tokens_for_words(word_count: int) -> int:
 
 
 def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None, logger=None,
-                      words_per_page: int = 55, max_words: int = 2200, model: str = None):
+                      words_per_page: int = 55, max_words: int = 2200, model: str = None,
+                      summary_language: str = "en"):
     """
     api_key: the user's own OpenAI key, passed in per-request. A fresh
     client is built here and never persisted anywhere.
@@ -121,7 +131,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
             f"cut it short.\n\n"
             f"Chapter text:\n{chunks[0]}"
         )
-        summary, in_tok, out_tok = _call_openai(client, CHUNK_SYSTEM_PROMPT, user_prompt, max_tok, model=model)
+        summary, in_tok, out_tok = _call_openai(client, _chunk_prompt(summary_language), user_prompt, max_tok, model=model)
         total_in += in_tok
         total_out += out_tok
         elapsed = time.time() - start
@@ -142,7 +152,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
                 f"every distinct point in this section, don't skip any.\n\n"
                 f"Text:\n{chunk}"
             )
-            fut = pool.submit(_call_openai, client, CHUNK_SYSTEM_PROMPT, user_prompt, chunk_max_tok, model)
+            fut = pool.submit(_call_openai, client, _chunk_prompt(summary_language), user_prompt, chunk_max_tok, model)
             future_to_idx[fut] = idx
 
         for fut in concurrent.futures.as_completed(future_to_idx):
@@ -163,7 +173,7 @@ def summarize_chapter(title: str, text: str, api_key: str, num_pages: int = None
         f"final combined summary - use the full length to preserve every "
         f"point from the section summaries below.\n\n{combined}"
     )
-    final_summary, in_tok, out_tok = _call_openai(client, FINAL_SYSTEM_PROMPT, final_prompt, final_max_tok, model=model)
+    final_summary, in_tok, out_tok = _call_openai(client, _final_prompt(summary_language), final_prompt, final_max_tok, model=model)
     total_in += in_tok
     total_out += out_tok
 

@@ -22,6 +22,18 @@
     --card:#fbf8f1;
     --shadow: 0 1px 0 rgba(28,27,25,0.06);
   }
+  [data-theme="dark"]{
+    --ink:#e8e3d8;
+    --paper:#1a1917;
+    --paper-2:#222019;
+    --rule:#3a3730;
+    --gold:#c9962f;
+    --gold-bright:#e0aa3a;
+    --green:#6a9b62;
+    --muted:#8a8070;
+    --card:#211f1c;
+    --shadow: 0 1px 0 rgba(0,0,0,0.3);
+  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
@@ -772,9 +784,16 @@
 
   <header class="masthead">
     <div class="eyebrow">BookBrief</div>
-    <h1 class="title">Chapter-Wise Book Summarizer</h1>
-    <div class="subtitle">Drop in a PDF, and read it in minutes instead of hours.</div>
-    <button class="info-btn" onclick="openInfoModal()" title="Usage limits & cost info">👁</button>
+    <h1 class="title" id="mainTitle">Chapter-Wise Book Summarizer</h1>
+    <div class="subtitle" id="mainSubtitle">Drop in a PDF, and read it in minutes instead of hours.</div>
+    <div style="position:absolute; top:0; right:0; display:flex; gap:6px; align-items:center;">
+      <!-- Language toggle -->
+      <button class="info-btn" id="langToggleBtn" onclick="toggleLang()" title="Switch language / Sprache wechseln" style="font-size:14px;">🇩🇪</button>
+      <!-- Theme toggle -->
+      <button class="info-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle dark/light mode" style="font-size:14px;">🌙</button>
+      <!-- Info -->
+      <button class="info-btn" onclick="openInfoModal()" title="Usage limits & cost info">👁</button>
+    </div>
   </header>
 
   <!-- API Key bar -->
@@ -864,6 +883,19 @@
         </div>
       </div>
       <div class="params-preview" id="paramsPreview">20 pages → ~1000 words</div>
+    </div>
+
+    <!-- Summary output language -->
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--rule); display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);" id="summLangLabel">Summary language</span>
+      <div style="display:flex; gap:8px;">
+        <label style="display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer;">
+          <input type="radio" name="summLang" value="en" id="summLangEn" checked style="accent-color:var(--gold);"> 🇬🇧 <span id="summLangEnLabel">English</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer;">
+          <input type="radio" name="summLang" value="de" id="summLangDe" style="accent-color:var(--gold);"> 🇩🇪 <span id="summLangDeLabel">Deutsch</span>
+        </label>
+      </div>
     </div>
 
     <div class="row" style="margin-top:18px;">
@@ -1260,8 +1292,9 @@ summarizeBtn.addEventListener('click', async () => {
         words_per_page: parseInt(wppSlider.value),
         max_words: parseInt(maxWordsSlider.value),
         model: activeModel.id,
-        chapters: currentChapters,            // skip re-detection on backend
+        chapters: currentChapters,
         detection_method: currentDetectionMethod,
+        summary_language: document.querySelector('input[name="summLang"]:checked')?.value || 'en',
       })
     });
     const data = await res.json();
@@ -1541,6 +1574,140 @@ function handleInfoBackdrop(e){
   setTimeout(()=>wakeTTT.restart(), 1000);
 
 })();
+
+// ── Theme toggle ──────────────────────────────────────────────────────────
+function toggleTheme(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('bb_theme', next);
+  document.getElementById('themeToggleBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+}
+(function initTheme(){
+  const saved = localStorage.getItem('bb_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+})();
+
+// ── Language toggle (UI + summary output) ─────────────────────────────────
+const STRINGS = {
+  en: {
+    mainTitle:       'Chapter-Wise Book Summarizer',
+    mainSubtitle:    'Drop in a PDF, and read it in minutes instead of hours.',
+    step1:           'Choose your book',
+    dropTitle:       'Drop your PDF here',
+    dropSub:         'or click to browse — text-based PDFs only',
+    recentLabel:     'Recently uploaded',
+    recentEmpty:     'No books yet — upload one above',
+    step2:           'Table of contents',
+    detecting:       'Detecting chapters…',
+    aiModel:         'AI Model',
+    summParams:      'Summary parameters',
+    wpp:             'Words per page',
+    wppHint:         'Controls density — more words = more detailed per page',
+    maxW:            'Max words per chapter',
+    maxWHint:        'Caps the longest chapter summary (regardless of page count)',
+    summLang:        'Summary language',
+    summLangEn:      'English',
+    summLangDe:      'Deutsch',
+    summarizeBtn:    'Summarize this book →',
+    resetBtn:        'Reset defaults',
+    summWorking:     'Summarizing chapters, this can take a bit…',
+    downloadPdf:     'Download PDF Report',
+    langToggleTip:   'Switch to German / Auf Deutsch wechseln',
+  },
+  de: {
+    mainTitle:       'Kapitelweise Buchzusammenfassung',
+    mainSubtitle:    'PDF hochladen und in Minuten statt Stunden lesen.',
+    step1:           'Buch auswählen',
+    dropTitle:       'PDF hier ablegen',
+    dropSub:         'oder klicken zum Durchsuchen — nur textbasierte PDFs',
+    recentLabel:     'Zuletzt hochgeladen',
+    recentEmpty:     'Noch kein Buch — oben hochladen',
+    step2:           'Inhaltsverzeichnis',
+    detecting:       'Kapitel werden erkannt…',
+    aiModel:         'KI-Modell',
+    summParams:      'Zusammenfassungsparameter',
+    wpp:             'Wörter pro Seite',
+    wppHint:         'Dichte steuern — mehr Wörter = detaillierter pro Seite',
+    maxW:            'Max. Wörter pro Kapitel',
+    maxWHint:        'Begrenzt die längste Kapitelzusammenfassung',
+    summLang:        'Zusammenfassungssprache',
+    summLangEn:      'Englisch',
+    summLangDe:      'Deutsch',
+    summarizeBtn:    'Dieses Buch zusammenfassen →',
+    resetBtn:        'Zurücksetzen',
+    summWorking:     'Kapitel werden zusammengefasst, bitte etwas Geduld…',
+    downloadPdf:     'PDF-Bericht herunterladen',
+    langToggleTip:   'Switch to English / Auf Englisch wechseln',
+  },
+};
+
+let currentLang = localStorage.getItem('bb_lang') || 'en';
+
+function applyLang(lang){
+  currentLang = lang;
+  localStorage.setItem('bb_lang', lang);
+  const s = STRINGS[lang];
+
+  // masthead
+  const mt = document.getElementById('mainTitle');
+  const ms = document.getElementById('mainSubtitle');
+  if(mt) mt.textContent = s.mainTitle;
+  if(ms) ms.textContent = s.mainSubtitle;
+
+  // lang button tooltip + icon
+  const lb = document.getElementById('langToggleBtn');
+  if(lb){ lb.title = s.langToggleTip; lb.textContent = lang === 'de' ? '🇬🇧' : '🇩🇪'; }
+
+  // step labels
+  setText('summLangLabel', s.summLang);
+  setText('summLangEnLabel', s.summLangEn);
+  setText('summLangDeLabel', s.summLangDe);
+  setText('summarizeBtn', s.summarizeBtn);
+  setText('resetParamsBtn', s.resetBtn);
+
+  // params labels — find by content proximity (use data attrs set below)
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(s[key]) el.textContent = s[key];
+  });
+
+  // step 1 heading
+  const step1h = document.querySelector('#tocPanel h2 .num');
+  // Drop zone
+  const dTitle = document.querySelector('.drop-title');
+  const dSub   = document.querySelector('.drop-sub');
+  if(dTitle) dTitle.textContent = s.dropTitle;
+  if(dSub)   dSub.textContent   = s.dropSub;
+
+  // recent books label
+  const rl = document.querySelector('.recent-label');
+  if(rl) rl.textContent = s.recentLabel;
+
+  // summarize status message
+  const ss = document.getElementById('summarizeStatus');
+  const ssSpan = ss ? ss.querySelector('span:last-child') : null;
+  if(ssSpan) ssSpan.textContent = s.summWorking;
+
+  // PDF download button text
+  const pdfBtn = document.getElementById('downloadPdfBtn');
+  if(pdfBtn){
+    const svgEl = pdfBtn.querySelector('svg');
+    pdfBtn.textContent = s.downloadPdf;
+    if(svgEl) pdfBtn.prepend(svgEl);
+  }
+}
+
+function setText(id, txt){ const el = document.getElementById(id); if(el) el.textContent = txt; }
+
+function toggleLang(){
+  applyLang(currentLang === 'en' ? 'de' : 'en');
+}
+
+// init lang on load
+applyLang(currentLang);
 
 // ── Model picker ──────────────────────────────────────────────────────────
 const MODELS = [
