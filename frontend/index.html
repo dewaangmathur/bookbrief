@@ -1502,6 +1502,48 @@ async function syncServerBooks(){
 }
 syncServerBooks();
 
+// ── Drop zone lock/unlock ─────────────────────────────────────────────────
+let dropZoneLocked = false;
+
+function lockDropZone(){
+  dropZoneLocked = true;
+  dropZone.style.opacity      = '0.5';
+  dropZone.style.cursor       = 'not-allowed';
+  dropZone.style.pointerEvents = 'none';
+  fileInput.disabled          = true;
+  // show a banner inside drop zone
+  let banner = document.getElementById('dropLockBanner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'dropLockBanner';
+    banner.style.cssText = `
+      position:absolute; inset:0; z-index:10;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(243,237,225,0.82); border-radius:var(--radius);
+      font-family:'JetBrains Mono',monospace; font-size:12px;
+      color:var(--muted); text-align:center; padding:16px;
+      cursor:not-allowed;
+      backdrop-filter:blur(2px);
+    `;
+    dropZone.appendChild(banner);
+  }
+  const de = currentLang === 'de';
+  banner.textContent = de
+    ? '⏳ Verarbeitung läuft… Abschließen oder "Neues Buch" klicken.'
+    : '⏳ Processing… finish or click "New book" to start over.';
+  banner.style.display = 'flex';
+}
+
+function unlockDropZone(){
+  dropZoneLocked = false;
+  dropZone.style.opacity       = '1';
+  dropZone.style.cursor        = 'pointer';
+  dropZone.style.pointerEvents = '';
+  fileInput.disabled           = false;
+  const banner = document.getElementById('dropLockBanner');
+  if(banner) banner.style.display = 'none';
+}
+
 async function uploadFile(file){
   if(!file || !file.name.toLowerCase().endsWith('.pdf')){
     showErr('Please upload a PDF file.'); return;
@@ -1513,7 +1555,7 @@ async function uploadFile(file){
   clearErr();
   uploadStatusMsg.textContent = (STRINGS[currentLang]||STRINGS.en).uploading(file.name);
   uploadStatus.classList.add('active');
-  dropZone.style.opacity = '0.6';
+  lockDropZone();
   try{
     const fd = new FormData();
     fd.append('file', file);
@@ -1525,7 +1567,7 @@ async function uploadFile(file){
   }catch(e){ showErr(e.message); }
   finally{
     uploadStatus.classList.remove('active');
-    dropZone.style.opacity = '1';
+    // keep locked — loadToc will continue the lock during detection
   }
 }
 
@@ -1555,6 +1597,7 @@ async function loadToc(filename){
   tocMeta.textContent = 'Detecting chapters…';
   tocBody.innerHTML = '';
   summarizeBtn.disabled = true;
+  lockDropZone();
   showWaitSnake('Detecting chapters — LLM is reading your book\'s table of contents…');
   try{
     const res  = await fetch(`${API}/api/preview-chapters`, {
@@ -1588,10 +1631,12 @@ async function loadToc(filename){
     }
     tocBody.innerHTML = rows;
     summarizeBtn.disabled = false;
+    unlockDropZone();
   }catch(e){
     showErr(e.message);
     tocMeta.textContent='';
     summarizeBtn.disabled = false;
+    unlockDropZone();
   } finally {
     hideWaitSnake();
   }
@@ -1604,6 +1649,7 @@ summarizeBtn.addEventListener('click', async () => {
   summarizeStatus.classList.add('active');
   summarizeBtn.disabled = true;
   resultsPanel.style.display = 'none';
+  lockDropZone();
   showWaitSnake('Summarizing your book — this takes a few minutes for large books…');
   try{
     const res = await fetch(`${API}/api/summarize`, {
@@ -1635,6 +1681,7 @@ summarizeBtn.addEventListener('click', async () => {
   finally{
     summarizeStatus.classList.remove('active');
     summarizeBtn.disabled = false;
+    unlockDropZone();
     hideWaitSnake();
   }
 });
@@ -1814,6 +1861,7 @@ function confirmStartOver(){
   // scroll to top smoothly
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
+  unlockDropZone();
   closeStartOver();
 
   // brief flash on drop zone to signal "ready"
