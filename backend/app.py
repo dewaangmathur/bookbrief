@@ -247,21 +247,21 @@ def export_docx():
     # Styles
     style = doc.styles['Normal']
     style.font.name = 'Georgia'
-    style.font.size = Pt(11)
+    style.font.size = Pt(12)
 
     # ── Cover info ───────────────────────────────────────────────────────
     book_name = (data.get("filename") or "Book Summary").replace(".pdf", "")
     t = doc.add_paragraph()
     t.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = t.add_run("BOOKBRIEF — CHAPTER SUMMARY REPORT")
-    run.font.size = Pt(8)
+    run.font.size = Pt(9)
     run.font.color.rgb = RGBColor(0x6f, 0x66, 0x56)
 
     title_p = doc.add_paragraph()
     title_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     title_run = title_p.add_run(book_name)
     title_run.bold = True
-    title_run.font.size = Pt(20)
+    title_run.font.size = Pt(22)
     title_run.font.name = 'Georgia'
 
     s = data.get("stats", {})
@@ -270,7 +270,7 @@ def export_docx():
                  f"Pages: {data.get('total_pages', '—')}   ·   "
                  f"Model: {s.get('model', 'gpt-4o-mini')}   ·   "
                  f"Cost: ${s.get('total_cost_usd', 0):.4f}")
-    meta.runs[0].font.size = Pt(9)
+    meta.runs[0].font.size = Pt(10)
     meta.runs[0].font.color.rgb = RGBColor(0x6f, 0x66, 0x56)
 
     doc.add_paragraph()  # spacer
@@ -279,13 +279,13 @@ def export_docx():
     toc_heading = doc.add_paragraph()
     toc_run = toc_heading.add_run("Contents")
     toc_run.bold = True
-    toc_run.font.size = Pt(14)
+    toc_run.font.size = Pt(16)
 
     for i, ch in enumerate(data.get("chapters", [])):
         p = doc.add_paragraph()
         p.paragraph_format.left_indent = Inches(0.1)
         r = p.add_run(f"{str(i+1).zfill(2)}  {ch.get('title', '')}")
-        r.font.size = Pt(10)
+        r.font.size = Pt(12)
 
     doc.add_page_break()
 
@@ -294,16 +294,17 @@ def export_docx():
         # Chapter heading
         h = doc.add_paragraph()
         num_run = h.add_run(f"{str(i+1).zfill(2)} / {len(data['chapters'])}   ")
-        num_run.font.size = Pt(9)
+        num_run.font.size = Pt(10)
         num_run.font.color.rgb = RGBColor(0xA9, 0x78, 0x2F)
         title_run = h.add_run(ch.get("title", ""))
         title_run.bold = True
-        title_run.font.size = Pt(15)
+        title_run.font.size = Pt(17)
+        title_run.font.name = 'Georgia'
 
         # Meta
         m = doc.add_paragraph()
         m.add_run(f"{ch.get('pages', 0)} pages  ·  ${ch.get('cost_usd', 0):.4f}")
-        m.runs[0].font.size = Pt(8)
+        m.runs[0].font.size = Pt(9)
         m.runs[0].font.color.rgb = RGBColor(0x6f, 0x66, 0x56)
 
         # Summary body
